@@ -1,0 +1,60 @@
+ok as an ui ux senvior and system architect level in prompte enginiring with google pro geminie model  i want you now to explaine the idee of the project to a new member chat for ui ux give hem the prompte that he will need and take you time doing that explaine to him the whole context and inhansed this prompte "Act as an Expert UI/UX Frontend Developer. I need you to build the UI layouts for a LegalTech application using Next.js, Tailwind CSS, and Lucide React icons. The application has a specific layout structure based on three wireframe sketches. Please generate the code for these specific views:
+
+
+
+1. GLOBAL NAVIGATION (Fixed Left Sidebar):
+
+- Top section icons: Chat bubble, Cloud (My Data Base), Document with pencil (LaTeX Editor), Open Book (Library).
+
+- Bottom section icons: Sun/Moon (Theme toggle), Bell (Notifications), Gear (Settings).
+
+
+
+2. CHAT PAGE VIEW:
+
+- Secondary Sidebar (Left): Contains a "New Chat" button at the top. Below it, two sections: "Pinned Chats" and "Recent Chats" (History). Each chat item should have an options menu (Share, Pin, Rename, Delete).
+
+- Main Chat Area (Right): A standard messaging interface.
+
+- Input Component (Bottom): A rich text input box. On the left side of the input, a "+" button to import files from the user's database (dropdown options: Image, Audio, Video, PDF, Deep Search). On the right side, a Voice/Mic button.
+
+
+
+3. DATA BASE PAGE VIEW:
+
+- Top Area: A wide Search Bar for querying documents.
+
+- Main Area: A grid layout displaying cards for Folders and Files (PDFs, text documents, media). Each card should have an icon representing its file type and a title.
+
+
+
+4. LATEX EDITOR PAGE VIEW (Overleaf/Cursor style):
+
+- Secondary Sidebar (Left): "New File" button at the top, followed by "Pinned" and "Documents" lists.
+
+- Middle Pane (Editor): The main document editor. It must have a toggle at the top to switch between "Code View" (LaTeX source) and "Visual View" (PDF preview).
+
+- Right Pane (AI Assistant): 
+
+    - Top half: A chat interface specifically for interacting with the current document.
+
+    - Bottom half: A list of reference files attached to this specific LaTeX project.
+
+- Inline AI Editing Feature: The AI in the right pane can propose changes to the code in the middle pane. The UI must support a "diff" view where old code is highlighted in Red and proposed new code is highlighted in Green. Include floating action buttons near the changed code to "Accept", "Reject", or "Reject All" edits.
+
+
+
+Please provide the structural code, layout containers (using Flexbox/Grid), and CSS classes for these views. Focus on a clean, professional, enterprise SaaS aesthetic." take your time  give it to me in form of text so i can copy it 
+
+
+
+
+
+
+
+
+
+
+
+
+

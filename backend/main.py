@@ -1,6 +1,9 @@
-def main():
-    print("Hello from backend!")
+"""
+Thin entry point for running the backend with uvicorn.
 
+Usage:
+    cd backend
+    uvicorn main:app --reload
+"""
 
-if __name__ == "__main__":
-    main()
+from app.main import app  # noqa: F401
