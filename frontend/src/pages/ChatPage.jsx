@@ -1,395 +1,344 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  Send,
-  Pin,
-  Trash2,
-  Edit3,
-  Check,
-  X,
-  Loader2,
-  MessageSquare,
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { chatService } from '../services/chatService';
-import './ChatPage.css';
+import { fileService } from '../services/fileService';
 
 export default function ChatPage() {
-  const { sessionId } = useParams();
-  const navigate = useNavigate();
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-
+  // Chat State
   const [sessions, setSessions] = useState([]);
+  const [activeSession, setActiveSession] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [currentSession, setCurrentSession] = useState(null);
-  const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [loadingSessions, setLoadingSessions] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [editTitle, setEditTitle] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
-  // Load sessions
-  const loadSessions = useCallback(async () => {
-    try {
-      const res = await chatService.listSessions();
-      setSessions(res.data.sessions || []);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoadingSessions(false);
-    }
+  // Modal & Context State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [databaseFiles, setDatabaseFiles] = useState([]);
+  const [activeContextFile, setActiveContextFile] = useState(null);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+
+  // Load Sessions on mount
+  useEffect(() => {
+    fetchSessions();
   }, []);
 
-  useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
-
-  // Load messages when sessionId changes
-  useEffect(() => {
-    if (!sessionId) {
-      setMessages([]);
-      setCurrentSession(null);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await chatService.getSession(sessionId);
-        setMessages(res.data.messages || []);
-        setCurrentSession(res.data.session);
-      } catch {
-        navigate('/chat');
-      }
-    })();
-  }, [sessionId, navigate]);
-
-  // Auto-scroll
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Create new session
-  const handleNewChat = async () => {
+  // Fetch all chat sessions
+  const fetchSessions = async () => {
     try {
-      const res = await chatService.createSession();
-      await loadSessions();
-      navigate(`/chat/${res.data.id}`);
-    } catch {
-      /* ignore */
+      const response = await chatService.listSessions();
+      setSessions(response.data || []);
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
     }
   };
 
-  // Send message
-  const handleSend = async () => {
-    if (!input.trim() || sending) return;
+  // Load messages when activeSession changes
+  useEffect(() => {
+    if (activeSession) {
+      fetchMessages(activeSession.id);
+    } else {
+      setMessages([]);
+    }
+  }, [activeSession]);
 
-    let targetId = sessionId;
+  const fetchMessages = async (sessionId) => {
+    try {
+      const response = await chatService.getSession(sessionId);
+      // The backend returns session metadata + messages
+      if (response.data && response.data.messages) {
+        setMessages(response.data.messages);
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
 
-    // Auto-create session if none selected
-    if (!targetId) {
+  // Auto-scroll to bottom of messages
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  const handleNewChat = async () => {
+    try {
+      const response = await chatService.createSession('New Conversation');
+      const newSession = response.data;
+      setSessions((prev) => [newSession, ...prev]);
+      setActiveSession(newSession);
+      setActiveContextFile(null);
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return;
+
+    let currentSessionId = activeSession?.id;
+
+    // If no active session, create one first
+    if (!currentSessionId) {
       try {
-        const res = await chatService.createSession(input.slice(0, 50));
-        targetId = res.data.id;
-        navigate(`/chat/${targetId}`, { replace: true });
-        await loadSessions();
-      } catch {
+        const title = inputValue.substring(0, 30) + (inputValue.length > 30 ? '...' : '');
+        const response = await chatService.createSession(title);
+        currentSessionId = response.data.id;
+        setActiveSession(response.data);
+        setSessions((prev) => [response.data, ...prev]);
+      } catch (error) {
+        console.error('Error creating session before sending message:', error);
         return;
       }
     }
 
-    const userContent = input.trim();
-    setInput('');
-    setSending(true);
+    // Prepare message (include context hint if a file is selected)
+    let contentToSend = inputValue;
+    if (activeContextFile) {
+      // Depending on backend RAG implementation, passing the file context in the prompt might be required
+      contentToSend = `[Context Document: ${activeContextFile.nom_fichier}]\n${inputValue}`;
+    }
 
-    // Optimistic UI — add user message immediately
-    const tempUserMsg = {
-      id: `temp-${Date.now()}`,
-      auteur: 'user',
-      contenu: userContent,
-      date_creation: new Date().toISOString(),
-    };
+    // Optimistically update UI
+    const tempUserMsg = { id: Date.now(), role: 'user', contenu: inputValue };
     setMessages((prev) => [...prev, tempUserMsg]);
+    setInputValue('');
+    setLoading(true);
 
     try {
-      const res = await chatService.sendMessage(targetId, userContent);
-      // Replace temp with real messages
-      setMessages((prev) => [
-        ...prev.filter((m) => m.id !== tempUserMsg.id),
-        res.data.user_message,
-        res.data.ai_message,
-      ]);
-      loadSessions();
-    } catch {
-      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-      setInput(userContent);
+      // The endpoint returns { user_message, ai_message }
+      const response = await chatService.sendMessage(currentSessionId, contentToSend);
+      if (response.data && response.data.ai_message) {
+        // Refresh the whole message thread to get proper IDs from DB
+        fetchMessages(currentSessionId);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
     } finally {
-      setSending(false);
-      inputRef.current?.focus();
+      setLoading(false);
     }
   };
 
-  // Key handler
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  // Delete session
-  const handleDelete = async (id) => {
+  // Open Modal and load files
+  const handleOpenModal = async () => {
+    setIsModalOpen(true);
+    setLoadingFiles(true);
     try {
-      await chatService.deleteSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      if (sessionId === id) navigate('/chat');
-    } catch {
-      /* ignore */
+      const response = await fileService.listFiles();
+      setDatabaseFiles(response.data || []);
+    } catch (error) {
+      console.error('Error fetching files for modal:', error);
+    } finally {
+      setLoadingFiles(false);
     }
   };
 
-  // Toggle pin
-  const handleTogglePin = async (session) => {
-    try {
-      await chatService.updateSession(session.id, {
-        epingle: !session.epingle,
-      });
-      loadSessions();
-    } catch {
-      /* ignore */
-    }
+  const handleSelectFile = (file) => {
+    setActiveContextFile(file);
+    setIsModalOpen(false);
   };
-
-  // Rename
-  const handleRename = async (id) => {
-    if (!editTitle.trim()) return;
-    try {
-      await chatService.updateSession(id, { titre: editTitle.trim() });
-      setEditingId(null);
-      loadSessions();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const pinned = sessions.filter((s) => s.epingle);
-  const recent = sessions.filter((s) => !s.epingle);
 
   return (
-    <div className="chat-page">
-      {/* ── Sidebar ── */}
-      <aside className="chat-sidebar" id="chat-sidebar">
-        <div className="chat-sidebar__header">
-          <h2 className="chat-sidebar__title">SESSIONS</h2>
-          <button
-            className="chat-sidebar__new"
+    <div className="flex-1 flex h-full overflow-hidden relative">
+      {/* Secondary Sidebar: Chat History */}
+      <aside className="w-64 md:w-72 bg-surface-container-low border-r border-border-subtle flex flex-col h-full flex-shrink-0">
+        <div className="p-4 border-b border-border-subtle">
+          <button 
             onClick={handleNewChat}
-            title="Nouvelle discussion"
-            id="new-chat-btn"
+            className="w-full bg-primary text-on-primary py-2.5 px-4 rounded font-label-caps text-label-caps flex items-center justify-between hover:opacity-90 transition-opacity uppercase tracking-widest"
           >
-            <Plus size={18} />
+            <span>New Chat</span>
+            <span className="material-symbols-outlined text-sm">add</span>
           </button>
         </div>
-
-        <div className="chat-sidebar__list">
-          {pinned.length > 0 && (
-            <>
-              <span className="chat-sidebar__label">ÉPINGLÉES</span>
-              {pinned.map((s) => (
-                <SessionItem
-                  key={s.id}
-                  session={s}
-                  active={sessionId === s.id}
-                  editingId={editingId}
-                  editTitle={editTitle}
-                  onSelect={() => navigate(`/chat/${s.id}`)}
-                  onDelete={() => handleDelete(s.id)}
-                  onPin={() => handleTogglePin(s)}
-                  onStartEdit={() => {
-                    setEditingId(s.id);
-                    setEditTitle(s.titre || '');
-                  }}
-                  onCancelEdit={() => setEditingId(null)}
-                  onConfirmEdit={() => handleRename(s.id)}
-                  onEditChange={setEditTitle}
-                />
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div>
+            <h3 className="font-label-caps text-label-caps text-secondary mb-3 px-2 uppercase tracking-widest">Conversations</h3>
+            <ul className="space-y-1">
+              {sessions.map((session) => (
+                <li key={session.id}>
+                  <button 
+                    onClick={() => setActiveSession(session)}
+                    className={`w-full text-left block px-3 py-2 rounded font-medium transition-colors truncate border ${
+                      activeSession?.id === session.id 
+                        ? 'bg-surface-muted text-primary border-border-subtle' 
+                        : 'text-text-charcoal border-transparent hover:bg-surface-muted hover:border-border-subtle'
+                    }`}
+                  >
+                    {session.titre || 'Untitled Discussion'}
+                  </button>
+                </li>
               ))}
-            </>
-          )}
-
-          {recent.length > 0 && (
-            <>
-              <span className="chat-sidebar__label">RÉCENTES</span>
-              {recent.map((s) => (
-                <SessionItem
-                  key={s.id}
-                  session={s}
-                  active={sessionId === s.id}
-                  editingId={editingId}
-                  editTitle={editTitle}
-                  onSelect={() => navigate(`/chat/${s.id}`)}
-                  onDelete={() => handleDelete(s.id)}
-                  onPin={() => handleTogglePin(s)}
-                  onStartEdit={() => {
-                    setEditingId(s.id);
-                    setEditTitle(s.titre || '');
-                  }}
-                  onCancelEdit={() => setEditingId(null)}
-                  onConfirmEdit={() => handleRename(s.id)}
-                  onEditChange={setEditTitle}
-                />
-              ))}
-            </>
-          )}
-
-          {!loadingSessions && sessions.length === 0 && (
-            <div className="chat-sidebar__empty">
-              <MessageSquare size={24} opacity={0.3} />
-              <span>Aucune discussion</span>
-            </div>
-          )}
+              {sessions.length === 0 && (
+                <li className="text-secondary text-sm px-2">No history</li>
+              )}
+            </ul>
+          </div>
         </div>
       </aside>
 
-      {/* ── Chat Area ── */}
-      <div className="chat-main">
-        {/* Messages */}
-        <div className="chat-messages" id="chat-messages">
-          {!sessionId && messages.length === 0 && (
-            <div className="chat-empty">
-              <div className="chat-empty__icon">⚖</div>
-              <h2 className="chat-empty__title">
-                Assistant Juridique IA
-              </h2>
-              <p className="chat-empty__sub">
-                Posez une question juridique pour commencer une nouvelle discussion.
-              </p>
+      {/* Main Chat Area */}
+      <main className="flex-1 flex flex-col bg-surface-container-lowest relative h-full">
+        {/* Top Header */}
+        <header className="h-16 flex justify-between items-center px-8 z-40 bg-surface dark:bg-surface border-b border-border-subtle dark:border-outline-variant flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <span className="font-headline-md text-headline-md text-primary dark:text-primary font-black tracking-tight">Lexis Legal</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative hidden lg:block">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-sm">search</span>
+              <input className="pl-9 pr-4 py-1.5 bg-surface-muted border border-border-subtle rounded focus:outline-none focus:border-primary text-sm font-body-md w-64 placeholder:text-secondary" placeholder="Search context..." type="text"/>
             </div>
-          )}
+          </div>
+        </header>
 
-          {messages.map((msg, i) => (
-            <div
-              key={msg.id || i}
-              className={`chat-msg chat-msg--${msg.auteur} fade-in`}
-            >
-              <div className="chat-msg__avatar">
-                {msg.auteur === 'user' ? 'U' : '⚖'}
+        {/* Chat Messages Scroll Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <div className="max-w-3xl mx-auto w-full space-y-8 pb-20">
+            
+            {/* Empty State / Welcome */}
+            {(!messages || messages.length === 0) && (
+              <div className="flex flex-col items-center justify-center text-center py-12">
+                <div className="w-16 h-16 bg-surface-muted border border-border-subtle rounded-full flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-primary text-3xl">gavel</span>
+                </div>
+                <h2 className="font-headline-md text-headline-md text-primary mb-2">
+                  {activeSession ? activeSession.titre : 'Start a New Legal Chat'}
+                </h2>
+                <p className="font-body-md text-body-md text-secondary max-w-md">
+                  I am ready to analyze documents. You can paste clauses or use the + button to import a file from your database for RAG context.
+                </p>
               </div>
-              <div className="chat-msg__body">
-                <span className="chat-msg__role">
-                  {msg.auteur === 'user' ? 'Vous' : 'Lexis AI'}
-                </span>
-                <div className="chat-msg__content">
-                  {msg.contenu}
+            )}
+
+            {/* Messages Loop */}
+            {messages.map((msg, index) => (
+              <div key={msg.id || index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === 'user' ? (
+                  <div className="bg-surface-muted border border-border-subtle p-5 rounded-lg max-w-[85%] sm:max-w-2xl text-primary font-body-md whitespace-pre-wrap">
+                    {msg.contenu}
+                  </div>
+                ) : (
+                  <div className="py-4 pr-6 pl-2 max-w-[95%] sm:max-w-3xl text-primary font-body-md leading-relaxed whitespace-pre-wrap">
+                    {msg.contenu}
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {loading && (
+              <div className="flex justify-start">
+                <div className="py-4 pr-6 pl-2 text-secondary font-body-md animate-pulse">
+                  Lexis AI is thinking...
                 </div>
               </div>
-            </div>
-          ))}
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
 
-          {sending && (
-            <div className="chat-msg chat-msg--ia chat-msg--loading fade-in">
-              <div className="chat-msg__avatar">⚖</div>
-              <div className="chat-msg__body">
-                <span className="chat-msg__role">Lexis AI</span>
-                <div className="chat-msg__content">
-                  <Loader2 size={18} className="chat-msg__spinner" />
-                  Analyse en cours...
-                </div>
+        {/* Bottom Input Bar */}
+        <div className="p-4 md:p-6 w-full border-t border-border-subtle bg-surface-container-lowest">
+          <div className="max-w-3xl mx-auto w-full relative">
+            
+            {/* Active Context Chip */}
+            {activeContextFile && (
+              <div className="absolute -top-10 left-0 bg-surface-variant border border-border-subtle text-primary text-xs px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                <span className="material-symbols-outlined text-sm">description</span>
+                <span className="font-medium truncate max-w-xs">{activeContextFile.nom_fichier}</span>
+                <button 
+                  onClick={() => setActiveContextFile(null)}
+                  className="hover:text-error transition-colors ml-1"
+                >
+                  <span className="material-symbols-outlined text-sm leading-none">close</span>
+                </button>
               </div>
+            )}
+
+            <div className="flex items-end gap-2 bg-surface border border-border-subtle rounded-lg focus-within:border-primary transition-colors p-2 shadow-sm">
+              {/* Attachment Action */}
+              <button 
+                onClick={handleOpenModal}
+                className="p-2 text-secondary hover:text-primary transition-colors rounded hover:bg-surface-muted shrink-0"
+              >
+                <span className="material-symbols-outlined text-xl leading-none">add_circle</span>
+              </button>
+              
+              {/* Input Field */}
+              <textarea 
+                className="flex-1 bg-transparent border-none focus:ring-0 resize-none font-body-md text-body-md p-2 max-h-32 placeholder:text-secondary focus:outline-none" 
+                placeholder="Message Lexis AI..." 
+                rows="1"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+              
+              {/* Send Action */}
+              <button 
+                onClick={handleSendMessage}
+                disabled={loading || !inputValue.trim()}
+                className="p-2 bg-primary text-on-primary hover:opacity-90 disabled:opacity-50 transition-opacity rounded shrink-0 flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-lg leading-none">arrow_upward</span>
+              </button>
             </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="chat-input-bar" id="chat-input-bar">
-          <div className="chat-input-wrapper">
-            <textarea
-              ref={inputRef}
-              className="chat-input"
-              placeholder="Posez votre question juridique..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              disabled={sending}
-              id="chat-input"
-            />
-            <button
-              className="chat-send-btn"
-              onClick={handleSend}
-              disabled={!input.trim() || sending}
-              title="Envoyer"
-              id="chat-send-btn"
-            >
-              <Send size={18} />
-            </button>
+            <div className="text-center mt-2">
+              <span className="font-code-sm text-code-sm text-secondary text-xs">Lexis AI can make mistakes. Consider verifying critical legal assertions.</span>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      </main>
 
-/* ── Session Item Component ── */
-function SessionItem({
-  session,
-  active,
-  editingId,
-  editTitle,
-  onSelect,
-  onDelete,
-  onPin,
-  onStartEdit,
-  onCancelEdit,
-  onConfirmEdit,
-  onEditChange,
-}) {
-  const isEditing = editingId === session.id;
-
-  return (
-    <div
-      className={`session-item ${active ? 'session-item--active' : ''}`}
-      onClick={!isEditing ? onSelect : undefined}
-    >
-      {isEditing ? (
-        <div className="session-item__edit" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => onEditChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onConfirmEdit()}
-            autoFocus
-            className="session-item__edit-input"
-          />
-          <button onClick={onConfirmEdit} title="Confirmer">
-            <Check size={14} />
-          </button>
-          <button onClick={onCancelEdit} title="Annuler">
-            <X size={14} />
-          </button>
-        </div>
-      ) : (
-        <>
-          <span className="session-item__title">
-            {session.epingle && <Pin size={12} className="session-item__pin-icon" />}
-            {session.titre || 'Nouvelle Discussion'}
-          </span>
-          <div
-            className="session-item__actions"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button onClick={onStartEdit} title="Renommer">
-              <Edit3 size={13} />
-            </button>
-            <button onClick={onPin} title={session.epingle ? 'Désépingler' : 'Épingler'}>
-              <Pin size={13} />
-            </button>
-            <button onClick={onDelete} title="Supprimer">
-              <Trash2 size={13} />
-            </button>
+      {/* Import Modal Overlay */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-primary/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+          <div className="bg-surface border border-border-subtle rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-border-subtle flex justify-between items-center bg-surface-bright">
+              <h2 className="font-headline-md text-headline-md text-primary">Import Document for Context</h2>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-secondary hover:text-primary transition-colors p-1"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 bg-surface-container-lowest">
+              {loadingFiles ? (
+                <div className="text-center py-8 text-secondary font-code-sm">Loading your database files...</div>
+              ) : databaseFiles.length === 0 ? (
+                <div className="text-center py-8 text-secondary font-code-sm">No files found. Please upload files in the Database page first.</div>
+              ) : (
+                <ul className="space-y-2">
+                  {databaseFiles.map(file => (
+                    <li key={file.id}>
+                      <button 
+                        onClick={() => handleSelectFile(file)}
+                        className="w-full text-left flex items-center gap-4 p-3 rounded border border-border-subtle hover:border-primary hover:bg-surface-muted transition-colors"
+                      >
+                        <div className="w-10 h-10 bg-surface-bright border border-border-subtle rounded flex items-center justify-center text-secondary shrink-0">
+                          <span className="material-symbols-outlined">description</span>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <div className="font-body-md text-primary truncate font-medium">{file.nom_fichier}</div>
+                          <div className="font-code-sm text-secondary text-xs mt-1">Select to use as RAG context</div>
+                        </div>
+                        <span className="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

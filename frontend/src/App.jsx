@@ -19,7 +19,6 @@ import DatabasePage from './pages/DatabasePage';
 import EditorPage from './pages/EditorPage';
 import LawyersPage from './pages/LawyersPage';
 
-import './App.css';
 
 function AuthSync() {
   const { getToken } = useAuth();
@@ -38,13 +37,14 @@ function AuthSync() {
           prenom: user.firstName || '',
           role: 'client',
         })
-        .catch(() => {});
+        .catch((err) => console.error("Auth sync error:", err));
     }
   }, [isLoaded, user]);
 
   return null;
 }
 
+// Ensure Clerk authentication <SignedIn> and <SignedOut> components are used properly to protect the dashboard routes.
 function ProtectedRoute({ children }) {
   return (
     <>
@@ -62,12 +62,14 @@ function ProtectedRoute({ children }) {
 export default function App() {
   return (
     <Routes>
-      {/* Public */}
+      {/* Public - Landing Page at root */}
       <Route path="/" element={<LandingPage />} />
+      
+      {/* Public - Auth pages */}
       <Route
         path="/sign-in/*"
         element={
-          <div className="auth-page">
+          <div className="auth-page flex justify-center items-center h-screen bg-surface">
             <SignIn routing="path" path="/sign-in" afterSignInUrl="/chat" />
           </div>
         }
@@ -75,13 +77,13 @@ export default function App() {
       <Route
         path="/sign-up/*"
         element={
-          <div className="auth-page">
+          <div className="auth-page flex justify-center items-center h-screen bg-surface">
             <SignUp routing="path" path="/sign-up" afterSignUpUrl="/chat" />
           </div>
         }
       />
 
-      {/* Protected — MainLayout shell */}
+      {/* Protected dashboard routes wrapped inside the MainLayout component */}
       <Route
         element={
           <ProtectedRoute>
@@ -97,7 +99,7 @@ export default function App() {
         <Route path="/lawyers" element={<LawyersPage />} />
       </Route>
 
-      {/* Fallback */}
+      {/* Fallback route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
