@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lexis Legal - Database</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "outline": "#7e7576",
+                      "primary": "#000000",
+                      "surface": "#f9f9f9",
+                      "error-container": "#ffdad6",
+                      "on-secondary-fixed-variant": "#474746",
+                      "secondary-fixed": "#e5e2e1",
+                      "tertiary-fixed-dim": "#c7c6c6",
+                      "on-tertiary-container": "#848484",
+                      "surface-container-high": "#e8e8e8",
+                      "on-secondary": "#ffffff",
+                      "text-charcoal": "#171717",
+                      "on-primary-container": "#848484",
+                      "on-primary-fixed": "#1b1b1b",
+                      "inverse-primary": "#c6c6c6",
+                      "secondary-fixed-dim": "#c8c6c5",
+                      "on-primary": "#ffffff",
+                      "inverse-on-surface": "#f0f1f1",
+                      "surface-variant": "#e2e2e2",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-fixed-variant": "#474747",
+                      "primary-fixed-dim": "#c6c6c6",
+                      "on-surface": "#1a1c1c",
+                      "secondary-container": "#e2dfde",
+                      "outline-variant": "#cfc4c5",
+                      "surface-dim": "#dadada",
+                      "border-subtle": "#E5E5E5",
+                      "surface-muted": "#F5F5F5",
+                      "surface-container-low": "#f3f3f4",
+                      "on-secondary-fixed": "#1c1b1b",
+                      "on-secondary-container": "#636262",
+                      "on-surface-variant": "#4c4546",
+                      "background": "#f9f9f9",
+                      "surface-bright": "#f9f9f9",
+                      "on-tertiary-fixed": "#1b1c1c",
+                      "primary-fixed": "#e2e2e2",
+                      "error": "#ba1a1a",
+                      "on-error-container": "#93000a",
+                      "tertiary": "#000000",
+                      "tertiary-container": "#1b1c1c",
+                      "on-background": "#1a1c1c",
+                      "secondary": "#5f5e5e",
+                      "surface-container-highest": "#e2e2e2",
+                      "surface-container-lowest": "#ffffff",
+                      "on-error": "#ffffff",
+                      "surface-container": "#eeeeee",
+                      "inverse-surface": "#2f3131",
+                      "on-tertiary-fixed-variant": "#464747",
+                      "primary-container": "#1b1b1b",
+                      "tertiary-fixed": "#e3e2e2",
+                      "surface-tint": "#5e5e5e"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "container-max": "1024px",
+                      "margin-desktop": "40px",
+                      "section-gap": "80px",
+                      "stack-gap": "24px",
+                      "gutter": "16px",
+                      "margin-mobile": "20px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "code-sm": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "code-md": [
+                              "JetBrains Mono"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "15px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "code-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "code-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-primary antialiased min-h-screen">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 right-0 left-16 md:left-20 h-16 bg-surface dark:bg-surface border-b border-border-subtle dark:border-outline-variant flex justify-between items-center px-8 z-40">
+<div class="flex items-center gap-8">
+<span class="font-headline-md text-headline-md text-primary dark:text-primary font-black">Lexis Legal</span>
+<div class="hidden md:flex gap-6 items-center">
+<a class="font-body-md text-body-md text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary transition-colors" href="#">Drafts</a>
+<a class="font-body-md text-body-md text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary transition-colors" href="#">Recent</a>
+<a class="font-body-md text-body-md text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary transition-colors" href="#">Starred</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<!-- Search Bar (on_right) -->
+<div class="relative hidden lg:block w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-sm">search</span>
+<input class="w-full bg-surface-muted border border-border-subtle rounded py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-primary transition-colors text-primary placeholder:text-secondary" placeholder="Search..." type="text"/>
+</div>
+<button class="px-4 py-1.5 border border-border-subtle rounded font-body-md text-body-md text-text-charcoal hover:bg-surface-muted transition-colors opacity-100 hover:opacity-80">Sign In</button>
+<button class="px-4 py-1.5 bg-primary text-on-primary rounded font-body-md text-body-md hover:opacity-90 transition-opacity opacity-100 hover:opacity-80">New Document</button>
+</div>
+</nav>
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-full w-16 md:w-20 bg-surface dark:bg-surface border-r border-border-subtle dark:border-outline-variant flex flex-col items-center py-6 z-50">
+<div class="w-10 h-10 bg-primary text-on-primary rounded flex items-center justify-center font-bold text-lg mb-8" title="Lexis AI Suite">
+            L
+        </div>
+<div class="flex flex-col gap-6 w-full">
+<a class="flex flex-col items-center gap-1 text-secondary dark:text-secondary-fixed-dim hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors py-2 w-full active:scale-95 transition-transform" href="#" title="Chat">
+<span class="material-symbols-outlined text-2xl">chat</span>
+<span class="font-label-caps text-label-caps text-[10px]">Chat</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary dark:text-primary font-bold border-r-2 border-primary py-2 w-full active:scale-95 transition-transform bg-surface-muted" href="#" title="Database">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">database</span>
+<span class="font-label-caps text-label-caps text-[10px]">Database</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-secondary dark:text-secondary-fixed-dim hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors py-2 w-full active:scale-95 transition-transform" href="#" title="LaTeX Editor">
+<span class="material-symbols-outlined text-2xl">edit_note</span>
+<span class="font-label-caps text-label-caps text-[10px]">LaTeX Editor</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-secondary dark:text-secondary-fixed-dim hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors py-2 w-full active:scale-95 transition-transform" href="#" title="Library">
+<span class="material-symbols-outlined text-2xl">library_books</span>
+<span class="font-label-caps text-label-caps text-[10px]">Library</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-16 md:ml-20 mt-16 p-margin-mobile md:p-margin-desktop max-w-container-max mx-auto">
+<!-- Large Search Area -->
+<section class="mb-section-gap pt-12 flex flex-col items-center text-center">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary mb-8 tracking-tight">Database Explorer</h1>
+<div class="w-full max-w-2xl relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary text-xl">search</span>
+<input class="w-full bg-surface-bright border border-border-subtle rounded py-4 pl-12 pr-4 text-body-lg font-body-lg text-primary focus:outline-none focus:border-primary transition-colors shadow-sm placeholder:text-secondary-fixed-dim" placeholder="Search legal documents, case files, or precedents..." type="text"/>
+<button class="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-surface-muted border border-border-subtle rounded font-body-md text-body-md text-text-charcoal hover:bg-border-subtle transition-colors">
+                    Search
+                </button>
+</div>
+<div class="mt-6 flex flex-wrap justify-center gap-2">
+<span class="font-label-caps text-label-caps text-secondary uppercase tracking-wider mr-2 self-center">Quick Filters:</span>
+<button class="px-3 py-1 bg-surface-muted text-text-charcoal font-code-sm text-code-sm rounded hover:bg-border-subtle transition-colors">Contracts</button>
+<button class="px-3 py-1 bg-surface-muted text-text-charcoal font-code-sm text-code-sm rounded hover:bg-border-subtle transition-colors">Litigation</button>
+<button class="px-3 py-1 bg-surface-muted text-text-charcoal font-code-sm text-code-sm rounded hover:bg-border-subtle transition-colors">M&amp;A</button>
+<button class="px-3 py-1 bg-surface-muted text-text-charcoal font-code-sm text-code-sm rounded hover:bg-border-subtle transition-colors">IP</button>
+</div>
+</section>
+<!-- Breadcrumbs & Actions -->
+<div class="flex justify-between items-end border-b border-border-subtle pb-4 mb-8">
+<div class="flex items-center gap-2 text-secondary font-body-md text-body-md">
+<a class="hover:text-primary transition-colors" href="#">Root</a>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<a class="hover:text-primary transition-colors" href="#">Corporate</a>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-primary font-medium">Q3 Filings</span>
+</div>
+<div class="flex gap-3">
+<button class="p-2 border border-border-subtle rounded text-secondary hover:text-primary hover:border-primary transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+</button>
+<button class="p-2 border border-border-subtle rounded text-secondary hover:text-primary hover:border-primary transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">grid_view</span>
+</button>
+</div>
+</div>
+<!-- Grid Layout -->
+<section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-stack-gap">
+<!-- Folder Card -->
+<div class="group bg-surface-bright border border-border-subtle rounded p-5 hover:border-primary transition-colors cursor-pointer flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 bg-surface-muted rounded flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">folder</span>
+</div>
+<button class="text-secondary opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</div>
+<div class="mt-auto">
+<h3 class="font-body-md text-body-md text-primary font-medium truncate mb-1">Acquisition Documents</h3>
+<p class="font-code-sm text-code-sm text-secondary">124 items</p>
+</div>
+</div>
+<!-- Folder Card -->
+<div class="group bg-surface-bright border border-border-subtle rounded p-5 hover:border-primary transition-colors cursor-pointer flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 bg-surface-muted rounded flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">folder</span>
+</div>
+<button class="text-secondary opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</div>
+<div class="mt-auto">
+<h3 class="font-body-md text-body-md text-primary font-medium truncate mb-1">Board Minutes</h3>
+<p class="font-code-sm text-code-sm text-secondary">45 items</p>
+</div>
+</div>
+<!-- Folder Card -->
+<div class="group bg-surface-bright border border-border-subtle rounded p-5 hover:border-primary transition-colors cursor-pointer flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 bg-surface-muted rounded flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">folder</span>
+</div>
+<button class="text-secondary opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</div>
+<div class="mt-auto">
+<h3 class="font-body-md text-body-md text-primary font-medium truncate mb-1">Financial Disclosures</h3>
+<p class="font-code-sm text-code-sm text-secondary">89 items</p>
+</div>
+</div>
+<!-- File Card (PDF) -->
+<div class="group bg-surface-bright border border-border-subtle rounded p-5 hover:border-primary transition-colors cursor-pointer flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 bg-surface-muted rounded flex items-center justify-center text-secondary border border-border-subtle">
+<span class="material-symbols-outlined text-xl">picture_as_pdf</span>
+</div>
+<button class="text-secondary opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</div>
+<div class="mt-auto">
+<h3 class="font-body-md text-body-md text-primary font-medium truncate mb-1" title="Q3_Earnings_Report_Final_v2.pdf">Q3_Earnings_Report_Final_v2.pdf</h3>
+<div class="flex justify-between items-center">
+<span class="font-code-sm text-code-sm text-secondary">PDF • 2.4 MB</span>
+<span class="font-code-sm text-code-sm text-tertiary-fixed-dim">Oct 12</span>
+</div>
+</div>
+</div>
+<!-- File Card (Doc) -->
+<div class="group bg-surface-bright border border-border-subtle rounded p-5 hover:border-primary transition-colors cursor-pointer flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 bg-surface-muted rounded flex items-center justify-center text-secondary border border-border-subtle">
+<span class="material-symbols-outlined text-xl">description</span>
+</div>
+<button class="text-secondary opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</div>
+<div class="mt-auto">
+<h3 class="font-body-md text-body-md text-primary font-medium truncate mb-1" title="Merger_Agreement_Draft_Redlined.docx">Merger_Agreement_Draft_Red...</h3>
+<div class="flex justify-between items-center">
+<span class="font-code-sm text-code-sm text-secondary">DOCX • 1.1 MB</span>
+<span class="font-code-sm text-code-sm text-tertiary-fixed-dim">Oct 10</span>
+</div>
+</div>
+</div>
+<!-- File Card (Doc) -->
+<div class="group bg-surface-bright border border-border-subtle rounded p-5 hover:border-primary transition-colors cursor-pointer flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 bg-surface-muted rounded flex items-center justify-center text-secondary border border-border-subtle">
+<span class="material-symbols-outlined text-xl">description</span>
+</div>
+<button class="text-secondary opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</div>
+<div class="mt-auto">
+<h3 class="font-body-md text-body-md text-primary font-medium truncate mb-1" title="Employee_Stock_Option_Plan_2024.docx">Employee_Stock_Option_Plan...</h3>
+<div class="flex justify-between items-center">
+<span class="font-code-sm text-code-sm text-secondary">DOCX • 840 KB</span>
+<span class="font-code-sm text-code-sm text-tertiary-fixed-dim">Oct 05</span>
+</div>
+</div>
+</div>
+<!-- File Card (Spreadsheet) -->
+<div class="group bg-surface-bright border border-border-subtle rounded p-5 hover:border-primary transition-colors cursor-pointer flex flex-col h-full">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 bg-surface-muted rounded flex items-center justify-center text-secondary border border-border-subtle">
+<span class="material-symbols-outlined text-xl">table_chart</span>
+</div>
+<button class="text-secondary opacity-0 group-hover:opacity-100 transition-opacity"><span class="material-symbols-outlined text-sm">more_vert</span></button>
+</div>
+<div class="mt-auto">
+<h3 class="font-body-md text-body-md text-primary font-medium truncate mb-1" title="Cap_Table_Analysis_Q3.xlsx">Cap_Table_Analysis_Q3.xlsx</h3>
+<div class="flex justify-between items-center">
+<span class="font-code-sm text-code-sm text-secondary">XLSX • 3.2 MB</span>
+<span class="font-code-sm text-code-sm text-tertiary-fixed-dim">Sep 28</span>
+</div>
+</div>
+</div>
+<!-- Empty Slot / Upload Area -->
+<div class="bg-surface-muted border border-dashed border-border-subtle rounded p-5 flex flex-col items-center justify-center h-full text-center hover:bg-surface-bright transition-colors cursor-pointer min-h-[160px]">
+<span class="material-symbols-outlined text-secondary mb-2 text-2xl">upload_file</span>
+<span class="font-body-md text-body-md text-primary font-medium">Upload File</span>
+<span class="font-code-sm text-code-sm text-secondary mt-1">Drag and drop</span>
+</div>
+</section>
+<!-- Pagination / Footer area -->
+<div class="mt-12 pt-6 border-t border-border-subtle flex justify-between items-center text-secondary font-code-sm text-code-sm">
+<span>Showing 1-7 of 24 items in Corporate/Q3 Filings</span>
+<div class="flex gap-2">
+<button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<span class="px-2">Page 1 of 4</span>
+<button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</main>
+</body></html>

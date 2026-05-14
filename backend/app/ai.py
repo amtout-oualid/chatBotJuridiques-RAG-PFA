@@ -7,6 +7,9 @@ NOTE: No RAG logic is implemented here. The RAG pipeline (vector search,
 embeddings, Qdrant) will be integrated inside this function later.
 """
 
+import asyncio
+from functools import partial
+
 from google import genai
 
 from app.config import get_settings
@@ -39,6 +42,17 @@ SYSTEM_PROMPT = (
 )
 
 
+def _sync_generate(client: genai.Client, user_input: str) -> str:
+    """Synchronous Gemini call — runs inside a thread pool."""
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[
+            {"role": "user", "parts": [{"text": f"{SYSTEM_PROMPT}\n\n{user_input}"}]}
+        ],
+    )
+    return response.text or "Désolé, je n'ai pas pu générer de réponse."
+
+
 # ─────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────
@@ -58,21 +72,16 @@ async def call_legal_ai(user_input: str) -> str:
 
     Notes
     -----
+    - The sync SDK call is run in a thread pool via asyncio.to_thread()
+      so it does NOT block the FastAPI event loop.
     - This is the integration point for RAG. Later, you will prepend
       retrieved context chunks to `user_input` before calling the LLM.
-    - The function is async-ready but the underlying SDK call is sync,
-      so it runs in the default thread pool executor.
     """
     client = _get_client()
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                {"role": "user", "parts": [{"text": f"{SYSTEM_PROMPT}\n\n{user_input}"}]}
-            ],
-        )
-        return response.text or "Désolé, je n'ai pas pu générer de réponse."
+        result = await asyncio.to_thread(_sync_generate, client, user_input)
+        return result
 
     except Exception as exc:
         # Log the error in production; return a user-friendly message

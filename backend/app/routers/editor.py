@@ -25,6 +25,7 @@ from app.schemas import (
     DocumentDetailResponse,
     DocumentListResponse,
     DocumentUpdate,
+    MessageOut,
     TemplateListResponse,
 )
 from app.services import editor_service
@@ -156,3 +157,23 @@ async def ai_suggest(
 ) -> AISuggestResponse:
     suggested = await editor_service.ai_suggest(data.latex_code, data.prompt)
     return AISuggestResponse(suggested_code=suggested)
+
+
+@router.delete(
+    "/docs/{document_id}",
+    response_model=MessageOut,
+    summary="Delete a document",
+    description="Soft deletes a generated LaTeX document.",
+)
+async def delete_document(
+    document_id: uuid.UUID,
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageOut:
+    deleted = await editor_service.delete_document(db, document_id, clerk_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+    return MessageOut(message="Document deleted successfully.")

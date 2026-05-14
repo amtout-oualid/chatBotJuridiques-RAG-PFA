@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lexis Legal - AI Suite</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7e7576",
+                        "primary": "#000000",
+                        "surface": "#f9f9f9",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#474746",
+                        "secondary-fixed": "#e5e2e1",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-tertiary-container": "#848484",
+                        "surface-container-high": "#e8e8e8",
+                        "on-secondary": "#ffffff",
+                        "text-charcoal": "#171717",
+                        "on-primary-container": "#848484",
+                        "on-primary-fixed": "#1b1b1b",
+                        "inverse-primary": "#c6c6c6",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#f0f1f1",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#474747",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "on-surface": "#1a1c1c",
+                        "secondary-container": "#e2dfde",
+                        "outline-variant": "#cfc4c5",
+                        "surface-dim": "#dadada",
+                        "border-subtle": "#E5E5E5",
+                        "surface-muted": "#F5F5F5",
+                        "surface-container-low": "#f3f3f4",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-secondary-container": "#636262",
+                        "on-surface-variant": "#4c4546",
+                        "background": "#f9f9f9",
+                        "surface-bright": "#f9f9f9",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "primary-fixed": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#000000",
+                        "tertiary-container": "#1b1c1c",
+                        "on-background": "#1a1c1c",
+                        "secondary": "#5f5e5e",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "surface-container": "#eeeeee",
+                        "inverse-surface": "#2f3131",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "primary-container": "#1b1b1b",
+                        "tertiary-fixed": "#e3e2e2",
+                        "surface-tint": "#5e5e5e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1024px",
+                        "margin-desktop": "40px",
+                        "section-gap": "80px",
+                        "stack-gap": "24px",
+                        "gutter": "16px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "code-sm": ["JetBrains Mono"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "code-md": ["JetBrains Mono"],
+                        "label-caps": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["15px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "code-sm": ["12px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "code-md": ["14px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        [data-weight="fill"] .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Hide scrollbars for cleaner look */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #E5E5E5;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #cfc4c5;
+        }
+    </style>
+</head>
+<body class="bg-surface text-text-charcoal font-body-md h-screen overflow-hidden flex selection:bg-border-subtle selection:text-primary">
+<!-- SideNavBar (Shared Component) -->
+<nav class="bg-surface dark:bg-surface fixed left-0 top-0 h-full w-16 md:w-20 border-r border-border-subtle dark:border-outline-variant flex flex-col items-center py-6 z-50">
+<div class="mb-8">
+<span class="font-headline-md text-headline-md text-primary dark:text-primary font-bold">L.</span>
+</div>
+<div class="flex flex-col gap-6 w-full items-center">
+<a class="flex flex-col items-center gap-1 text-secondary dark:text-secondary-fixed-dim hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors w-full py-2" href="#" title="Chat">
+<span class="material-symbols-outlined text-[24px]">chat</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-secondary dark:text-secondary-fixed-dim hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors w-full py-2" href="#" title="Database">
+<span class="material-symbols-outlined text-[24px]">database</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary dark:text-primary font-bold border-r-2 border-primary scale-95 transition-transform w-full py-2" href="#" title="LaTeX Editor">
+<span class="material-symbols-outlined text-[24px]" data-weight="fill">edit_note</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-secondary dark:text-secondary-fixed-dim hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors w-full py-2" href="#" title="Library">
+<span class="material-symbols-outlined text-[24px]">library_books</span>
+</a>
+</div>
+<div class="mt-auto">
+<button class="w-10 h-10 rounded-full bg-surface-muted border border-border-subtle flex items-center justify-center overflow-hidden">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3tIeKwvOSGzhZCkFrI2YmpROeiz6qliGuM7mJ0xlX5aQZX89hxKJY6uGDiyDS7bFKGM4t10_NNO7I59bNKXDy8iER9Vqxqdwi7VUJ84XZ0OiaDH-IZig_CweE_wfqum4eMKnZ6gXYJXLSFk1TMrr5wCGl8kxeT7NhUwbDRIxN-zUrT0n_JhVLduoJJ9g68oqynw_fLB_PAQfJwVUtmVPBYW6MVC2l95ASBgfLPKFLt-Zc6P-7315zV0Xx-4G1JZtF2Vo6vQ6BK-Lp"/>
+</button>
+</div>
+</nav>
+<!-- TopNavBar (Shared Component) -->
+<header class="bg-surface dark:bg-surface fixed top-0 right-0 left-16 md:left-20 h-16 border-b border-border-subtle dark:border-outline-variant flex justify-between items-center px-8 z-40">
+<div class="flex items-center gap-8">
+<span class="font-headline-md text-headline-md text-primary dark:text-primary font-black">Lexis Legal</span>
+<nav class="hidden md:flex gap-6">
+<a class="text-secondary dark:text-secondary-fixed-dim font-body-md text-body-md hover:text-primary dark:hover:text-primary transition-colors" href="#">Drafts</a>
+<a class="text-secondary dark:text-secondary-fixed-dim font-body-md text-body-md hover:text-primary dark:hover:text-primary transition-colors" href="#">Recent</a>
+<a class="text-secondary dark:text-secondary-fixed-dim font-body-md text-body-md hover:text-primary dark:hover:text-primary transition-colors" href="#">Starred</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-surface-muted border border-border-subtle rounded-full text-code-sm font-code-sm focus:outline-none focus:border-primary w-64 transition-colors" placeholder="Search models..." type="text"/>
+</div>
+<button class="px-4 py-1.5 text-text-charcoal border border-border-subtle rounded font-body-md text-body-md hover:bg-surface-muted transition-colors opacity-80 hover:opacity-100">Sign In</button>
+<button class="px-4 py-1.5 bg-primary text-on-primary rounded font-body-md text-body-md hover:bg-opacity-90 transition-colors">New Document</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-16 md:ml-20 mt-16 flex-1 flex h-[calc(100vh-64px)] w-full overflow-hidden bg-background">
+<!-- Left Pane: Workspace File List -->
+<aside class="w-64 border-r border-border-subtle bg-surface-bright flex flex-col h-full hidden lg:flex shrink-0">
+<div class="p-4 border-b border-border-subtle flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-secondary uppercase tracking-widest">Workspace</span>
+<button class="text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-2">
+<div class="mb-4">
+<div class="flex items-center gap-2 px-2 py-1.5 text-primary hover:bg-surface-muted rounded cursor-pointer group">
+<span class="material-symbols-outlined text-[16px] text-secondary group-hover:text-primary transition-colors">folder_open</span>
+<span class="font-code-sm text-code-sm">src</span>
+</div>
+<div class="ml-4 border-l border-border-subtle pl-2 mt-1 flex flex-col gap-1">
+<div class="flex items-center gap-2 px-2 py-1.5 text-primary hover:bg-surface-muted rounded cursor-pointer group bg-surface-muted">
+<span class="material-symbols-outlined text-[16px] text-secondary">description</span>
+<span class="font-code-sm text-code-sm font-medium">main.tex</span>
+</div>
+<div class="flex items-center gap-2 px-2 py-1.5 text-secondary hover:text-primary hover:bg-surface-muted rounded cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[16px]">description</span>
+<span class="font-code-sm text-code-sm">abstract.tex</span>
+</div>
+<div class="flex items-center gap-2 px-2 py-1.5 text-secondary hover:text-primary hover:bg-surface-muted rounded cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[16px]">description</span>
+<span class="font-code-sm text-code-sm">methods.tex</span>
+</div>
+</div>
+</div>
+<div class="mb-4">
+<div class="flex items-center gap-2 px-2 py-1.5 text-primary hover:bg-surface-muted rounded cursor-pointer group">
+<span class="material-symbols-outlined text-[16px] text-secondary group-hover:text-primary transition-colors">folder</span>
+<span class="font-code-sm text-code-sm">figures</span>
+</div>
+</div>
+<div>
+<div class="flex items-center gap-2 px-2 py-1.5 text-secondary hover:text-primary hover:bg-surface-muted rounded cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[16px]">settings</span>
+<span class="font-code-sm text-code-sm">preamble.sty</span>
+</div>
+<div class="flex items-center gap-2 px-2 py-1.5 text-secondary hover:text-primary hover:bg-surface-muted rounded cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[16px]">book</span>
+<span class="font-code-sm text-code-sm">references.bib</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Middle Pane: Document Editor -->
+<section class="flex-1 flex flex-col h-full min-w-0 bg-surface-muted">
+<!-- Editor Header -->
+<div class="h-12 border-b border-border-subtle bg-surface-bright flex items-center justify-between px-4 shrink-0">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">description</span>
+<span class="font-code-sm text-code-sm font-medium">main.tex</span>
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant ml-2"></span>
+<span class="font-code-sm text-code-sm text-secondary ml-1">Saved</span>
+</div>
+<div class="flex bg-surface-muted border border-border-subtle rounded p-0.5">
+<button class="px-3 py-1 font-label-caps text-label-caps uppercase tracking-widest text-secondary hover:text-primary transition-colors">Code View</button>
+<button class="px-3 py-1 font-label-caps text-label-caps uppercase tracking-widest bg-surface-bright border border-border-subtle rounded text-primary shadow-sm">Visual View</button>
+</div>
+</div>
+<!-- Editor Canvas -->
+<div class="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center">
+<div class="w-full max-w-[800px] bg-surface-container-lowest border border-border-subtle shadow-sm min-h-full p-12 md:p-16">
+<h1 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary text-center mb-6">A Novel Framework for Artificial Intelligence in Legal Discovery</h1>
+<div class="text-center mb-12">
+<p class="font-body-md text-body-md text-primary mb-2">Jane Doe<sup class="text-[10px]">1</sup> and John Smith<sup class="text-[10px]">2</sup></p>
+<p class="font-code-sm text-code-sm text-secondary">
+<sup class="text-[10px]">1</sup>Department of Computer Science, University of Technology<br/>
+<sup class="text-[10px]">2</sup>Faculty of Law, State University
+                        </p>
+</div>
+<h2 class="font-headline-md text-headline-md text-primary mt-8 mb-4 border-b border-border-subtle pb-2">Abstract</h2>
+<p class="font-body-lg text-body-lg text-text-charcoal mb-6 text-justify">
+                        This paper presents a comprehensive framework for the integration of large language models (LLMs) into the electronic discovery (e-discovery) process. We propose a pipeline that significantly reduces manual review time while maintaining high precision and recall in document categorization. Our methodology introduces a novel prompting strategy designed specifically for complex legal terminology and ambiguous contexts.
+                    </p>
+<h2 class="font-headline-md text-headline-md text-primary mt-12 mb-4 border-b border-border-subtle pb-2">1. Introduction</h2>
+<p class="font-body-lg text-body-lg text-text-charcoal mb-6 text-justify">
+                        The sheer volume of digital information generated in modern corporate environments presents a significant challenge during legal proceedings. Traditional predictive coding and technology-assisted review (TAR) protocols often struggle with nuanced language and context shifts. Recent advancements in transformer-based architectures offer a promising alternative.
+                    </p>
+<p class="font-body-lg text-body-lg text-text-charcoal mb-6 text-justify">
+                        As noted by previous research [1], the bottleneck in legal document review is rarely data extraction, but rather semantic interpretation. We aim to address this by formalizing the task as a few-shot learning problem bounded by specific legal constraints.
+                    </p>
+<!-- Embedded Code Block Example -->
+<div class="my-8 bg-surface-muted border border-border-subtle p-4 rounded font-code-sm text-code-sm text-text-charcoal overflow-x-auto">
+<pre><code>\begin{equation}
+P(R|D) = \frac{P(D|R)P(R)}{P(D)}
+\end{equation}
+\vspace{1em}
+\text{Where } R \text{ represents relevance and } D \text{ represents the document features.}</code></pre>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Pane: AI Assistant & References -->
+<aside class="w-80 border-l border-border-subtle bg-surface-bright flex flex-col h-full hidden xl:flex shrink-0">
+<div class="h-12 border-b border-border-subtle bg-surface-bright flex items-center px-4 shrink-0 justify-between">
+<span class="font-label-caps text-label-caps text-primary uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+                    Assistant
+                </span>
+<button class="text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
+<!-- Assistant Message -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+</div>
+<span class="font-code-sm text-code-sm font-medium">Lexis AI</span>
+</div>
+<div class="bg-surface-muted border border-border-subtle rounded-r-lg rounded-bl-lg p-3 ml-8 text-body-md font-body-md text-text-charcoal">
+                        I noticed you mentioned predictive coding in the introduction. Would you like me to suggest some recent citations comparing LLM performance against traditional TAR 2.0 protocols?
+                    </div>
+<div class="ml-8 flex gap-2 mt-1">
+<button class="px-2 py-1 bg-surface border border-border-subtle rounded text-code-sm font-code-sm text-secondary hover:text-primary transition-colors">Yes, insert citations</button>
+<button class="px-2 py-1 bg-surface border border-border-subtle rounded text-code-sm font-code-sm text-secondary hover:text-primary transition-colors">Show me first</button>
+</div>
+</div>
+<!-- Reference Chip Example -->
+<div class="mt-4">
+<span class="font-label-caps text-label-caps text-secondary uppercase tracking-widest mb-2 block">Context Sources</span>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-muted border border-border-subtle rounded flex items-center gap-1 font-code-sm text-code-sm text-text-charcoal">
+<span class="material-symbols-outlined text-[14px] text-secondary">description</span>
+                            smith_et_al_2023.pdf
+                        </span>
+<span class="px-2 py-1 bg-surface-muted border border-border-subtle rounded flex items-center gap-1 font-code-sm text-code-sm text-text-charcoal">
+<span class="material-symbols-outlined text-[14px] text-secondary">description</span>
+                            tar_guidelines.pdf
+                        </span>
+</div>
+</div>
+</div>
+<!-- Chat Input -->
+<div class="p-4 border-t border-border-subtle bg-surface-bright shrink-0">
+<div class="relative">
+<textarea class="w-full bg-surface-muted border border-border-subtle rounded-lg pl-3 pr-10 py-2 font-body-md text-body-md focus:outline-none focus:border-primary resize-none h-20" placeholder="Ask about the document..." spellcheck="false"></textarea>
+<button class="absolute bottom-3 right-3 text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">send</span>
+</button>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-code-sm text-code-sm text-secondary">Ctrl+Enter to send</span>
+<button class="text-secondary hover:text-primary transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">attach_file</span>
+</button>
+</div>
+</div>
+</aside>
+</main>
+</body></html>

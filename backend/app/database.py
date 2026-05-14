@@ -18,6 +18,7 @@ engine = create_async_engine(
     echo=False,
     pool_size=10,
     max_overflow=20,
+    pool_pre_ping=True,  # detect stale connections before use
 )
 
 # ── Session factory ──────────────────────────────────────
@@ -32,9 +33,17 @@ Base = declarative_base()
 
 
 async def get_db():
-    """FastAPI dependency — yields an AsyncSession, auto-closes on exit."""
+    """
+    FastAPI dependency — yields an AsyncSession.
+
+    Automatically rolls back on unhandled exceptions
+    to prevent partial commits and connection leaks.
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session
+        except Exception:
+            await session.rollback()
+            raise
         finally:
             await session.close()

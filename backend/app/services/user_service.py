@@ -6,7 +6,8 @@ Implements the UPSERT and SELECT queries from queriesReference.sql §1.
 
 from typing import Optional
 
-from sqlalchemy import select, text
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Utilisateur
@@ -21,35 +22,32 @@ async def sync_user(
     """
     UPSERT — Insert new user on first login OR update on Clerk change.
 
-    Maps to:
-        INSERT INTO utilisateurs (id, email, nom, prenom, role)
-        VALUES (:clerk_id, :email, :nom, :prenom, :role)
-        ON CONFLICT (id)
-        DO UPDATE SET email = EXCLUDED.email, nom = EXCLUDED.nom, prenom = EXCLUDED.prenom;
+    Uses SQLAlchemy's dialect-specific INSERT ... ON CONFLICT instead of
+    raw text() for better type safety and parameterisation.
     """
-    query = text("""
-        INSERT INTO utilisateurs (id, email, nom, prenom, role)
-        VALUES (:clerk_id, :email, :nom, :prenom, :role)
-        ON CONFLICT (id)
-        DO UPDATE SET
-            email = EXCLUDED.email,
-            nom   = EXCLUDED.nom,
-            prenom = EXCLUDED.prenom
-        RETURNING id, email, nom, prenom, role, date_creation, date_modif
-    """)
-    result = await db.execute(
-        query,
-        {
-            "clerk_id": clerk_id,
-            "email": data.email,
-            "nom": data.nom,
-            "prenom": data.prenom,
-            "role": data.role or "client",
+    stmt = pg_insert(Utilisateur).values(
+        id=clerk_id,
+        email=data.email,
+        nom=data.nom,
+        prenom=data.prenom,
+        role=data.role or "client",
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["id"],
+        set_={
+            "email": stmt.excluded.email,
+            "nom": stmt.excluded.nom,
+            "prenom": stmt.excluded.prenom,
         },
     )
+    await db.execute(stmt)
     await db.commit()
-    row = result.mappings().one()
-    return Utilisateur(**row)
+
+    # Fetch the full user object so ORM relationships work correctly
+    result = await db.execute(
+        select(Utilisateur).where(Utilisateur.id == clerk_id)
+    )
+    return result.scalars().one()
 
 
 async def get_user_by_id(

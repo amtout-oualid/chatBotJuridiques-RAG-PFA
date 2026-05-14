@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ═════════════════════════════════════════════════════════
@@ -80,7 +80,7 @@ class ChatSessionListResponse(BaseModel):
 
 class MessageCreate(BaseModel):
     """POST /chats/{id}/messages — user sends a prompt."""
-    contenu: str
+    contenu: str = Field(..., min_length=1, description="User message content")
 
 
 class MessageResponse(BaseModel):

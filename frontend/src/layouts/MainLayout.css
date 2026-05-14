@@ -1,0 +1,192 @@
+/* ═══════════════════════════════════════════════════════
+   MainLayout.css — Panel-based architecture
+   "Lexis Obsidian" design system
+   ═══════════════════════════════════════════════════════ */
+
+.main-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Navigation Rail ── */
+.nav-rail {
+  width: 220px;
+  min-width: 220px;
+  background: var(--surface-container-low);
+  border-right: 1px solid var(--outline-variant);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  transition: width var(--transition-normal), min-width var(--transition-normal);
+  z-index: 10;
+}
+
+.main-layout--collapsed .nav-rail {
+  width: 60px;
+  min-width: 60px;
+}
+
+.nav-rail__top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.nav-rail__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  color: var(--on-surface);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.main-layout--collapsed .nav-rail__brand {
+  justify-content: center;
+  padding: var(--space-2);
+}
+
+.nav-rail__logo {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.nav-rail__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+}
+
+.nav-rail__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  color: var(--on-surface-variant);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.main-layout--collapsed .nav-rail__link {
+  justify-content: center;
+  padding: var(--space-2);
+}
+
+.main-layout--collapsed .nav-rail__link span {
+  display: none;
+}
+
+.nav-rail__link:hover {
+  background: var(--surface-container);
+  color: var(--on-surface);
+}
+
+.nav-rail__link--active {
+  background: var(--accent-blue);
+  color: #ffffff;
+}
+
+.nav-rail__link--active:hover {
+  background: var(--accent-blue-hover);
+  color: #ffffff;
+}
+
+/* ── Bottom section ── */
+.nav-rail__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+}
+
+.nav-rail__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  color: var(--on-surface-variant);
+  transition: all var(--transition-fast);
+}
+
+.nav-rail__toggle:hover {
+  background: var(--surface-container);
+  color: var(--on-surface);
+}
+
+.nav-rail__user {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-1) 0;
+}
+
+/* ── Main Content ── */
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  background: var(--surface);
+}
+
+/* ── Mobile Responsive ── */
+@media (max-width: 768px) {
+  .nav-rail {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 60px;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--outline-variant);
+    padding: 0;
+    z-index: 100;
+  }
+
+  .nav-rail__top {
+    flex-direction: row;
+    flex: 1;
+    gap: 0;
+  }
+
+  .nav-rail__brand,
+  .nav-rail__bottom,
+  .nav-rail__link span {
+    display: none;
+  }
+
+  .nav-rail__links {
+    flex-direction: row;
+    justify-content: space-around;
+    flex: 1;
+    padding: 0;
+    gap: 0;
+  }
+
+  .nav-rail__link {
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
+    font-size: 10px;
+    border-radius: 0;
+  }
+
+  .main-content {
+    padding-bottom: 60px;
+  }
+}
