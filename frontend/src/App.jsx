@@ -81,6 +81,24 @@ export default function App() {
         }
       />
 
+      {/* Protected — Chat (newfront shell, no MainLayout) */}
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chat/:sessionId"
+        element={
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Protected — MainLayout shell */}
       <Route
         element={
@@ -89,8 +107,6 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/chat/:sessionId" element={<ChatPage />} />
         <Route path="/database" element={<DatabasePage />} />
         <Route path="/editor" element={<EditorPage />} />
         <Route path="/editor/:documentId" element={<EditorPage />} />

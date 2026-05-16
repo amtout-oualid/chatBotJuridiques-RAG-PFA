@@ -1,223 +1,408 @@
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import {
-  MessageSquare,
-  FileText,
-  Scale,
-  Database,
-  Shield,
-  Zap,
-  ArrowRight,
   Check,
+  Clock,
+  FileText,
+  Lock,
+  Zap,
+  Shield,
+  MessageSquare,
+  Database,
+  Edit2,
 } from 'lucide-react';
 import './LandingPage.css';
 
-const FEATURES = [
-  {
-    icon: MessageSquare,
-    title: 'Assistant IA Juridique',
-    desc: 'Posez vos questions juridiques et recevez des réponses précises basées sur le droit marocain et francophone.',
-    dark: true,
-  },
-  {
-    icon: Database,
-    title: 'Base Documentaire RAG',
-    desc: 'Téléchargez vos documents juridiques. Notre IA les indexe et les utilise comme contexte pour des réponses ultra-précises.',
-    dark: false,
-  },
-  {
-    icon: FileText,
-    title: 'Éditeur LaTeX Intelligent',
-    desc: 'Générez des contrats, NDA et documents légaux à partir de modèles professionnels avec assistance IA intégrée.',
-    dark: false,
-  },
-  {
-    icon: Scale,
-    title: 'Annuaire d\'Avocats',
-    desc: 'Trouvez l\'avocat spécialisé qu\'il vous faut, filtré par spécialité, barreau et disponibilité.',
-    dark: true,
-  },
-];
-
-const CHECKS = [
-  'Droit marocain & francophone',
-  'Recherche sémantique avancée',
-  'Documents LaTeX professionnels',
-  'Sécurité de niveau entreprise',
+const NAV_LINKS = [
+  { label: 'Use Cases', href: '#use-cases' },
+  { label: 'How it Works', href: '#how-it-works' },
+  { label: 'The Ecosystem', href: '#ecosystem' },
+  { label: 'Reviews', href: '#testimonials' },
+  { label: 'FAQ', href: '#faq' },
 ];
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
+  const goToDashboard = () => navigate('/chat');
+  const goToSignIn = () => navigate('/sign-in');
+  const goToSignUp = () => navigate('/sign-up');
+
+  const scrollTo = (hash) => {
+    const el = document.querySelector(hash);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="landing">
-      {/* ── Navbar ── */}
-      <header className="landing__nav">
-        <div className="landing__nav-inner">
-          <div className="landing__brand">
-            <span className="landing__brand-icon">⚖</span>
-            <span className="landing__brand-text">Lexis AI</span>
-          </div>
-          <nav className="landing__nav-links">
-            <a href="#features">Fonctionnalités</a>
-            <a href="#pricing">Tarifs</a>
-          </nav>
-          <div className="landing__nav-actions">
-            <SignedOut>
-              <button
-                className="landing__btn landing__btn--ghost"
-                onClick={() => navigate('/sign-in')}
-                id="nav-sign-in"
-              >
-                Connexion
-              </button>
-              <button
-                className="landing__btn landing__btn--primary"
-                onClick={() => navigate('/sign-up')}
-                id="nav-sign-up"
-              >
-                Commencer gratuitement
-              </button>
-            </SignedOut>
-            <SignedIn>
-              <button
-                className="landing__btn landing__btn--primary"
-                onClick={() => navigate('/chat')}
-                id="nav-dashboard"
-              >
-                Dashboard <ArrowRight size={16} />
-              </button>
-            </SignedIn>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Hero ── */}
-      <section className="landing__hero">
-        <div className="landing__hero-inner">
-          <span className="landing__badge">INTELLIGENCE JURIDIQUE</span>
-          <h1 className="landing__hero-title">
-            L'IA au service<br />du droit
-          </h1>
-          <p className="landing__hero-sub">
-            Recherche juridique intelligente, génération de documents et
-            assistance professionnelle — tout en un seul outil.
-          </p>
-          <div className="landing__hero-actions">
-            <SignedOut>
-              <button
-                className="landing__btn landing__btn--primary landing__btn--lg"
-                onClick={() => navigate('/sign-up')}
-                id="hero-cta"
-              >
-                Essayer Lexis AI <ArrowRight size={18} />
-              </button>
-              <button
-                className="landing__btn landing__btn--ghost landing__btn--lg"
-                onClick={() => navigate('/sign-in')}
-                id="hero-login"
-              >
-                Se connecter
-              </button>
-            </SignedOut>
-            <SignedIn>
-              <button
-                className="landing__btn landing__btn--primary landing__btn--lg"
-                onClick={() => navigate('/chat')}
-              >
-                Accéder au Dashboard <ArrowRight size={18} />
-              </button>
-            </SignedIn>
-          </div>
-          <div className="landing__checks">
-            {CHECKS.map((item) => (
-              <span key={item} className="landing__check">
-                <Check size={14} /> {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features Bento Grid ── */}
-      <section className="landing__features" id="features">
-        <div className="landing__features-inner">
-          <span className="landing__badge">FONCTIONNALITÉS</span>
-          <h2 className="landing__section-title">
-            Tout ce dont vous avez besoin<br />pour votre pratique juridique
-          </h2>
-          <div className="landing__bento">
-            {FEATURES.map((f, i) => (
-              <div
-                key={i}
-                className={`landing__card ${f.dark ? 'landing__card--dark' : ''}`}
-              >
-                <div className="landing__card-icon">
-                  <f.icon size={24} />
-                </div>
-                <h3 className="landing__card-title">{f.title}</h3>
-                <p className="landing__card-desc">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Stats ── */}
-      <section className="landing__stats">
-        <div className="landing__stats-inner">
-          <div className="landing__stat">
-            <span className="landing__stat-num">98%</span>
-            <span className="landing__stat-label">Précision des réponses</span>
-          </div>
-          <div className="landing__stat">
-            <span className="landing__stat-num">10x</span>
-            <span className="landing__stat-label">Plus rapide que la recherche manuelle</span>
-          </div>
-          <div className="landing__stat">
-            <span className="landing__stat-num">500+</span>
-            <span className="landing__stat-label">Modèles juridiques disponibles</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section className="landing__cta" id="pricing">
-        <div className="landing__cta-inner">
-          <div className="landing__cta-badges">
-            <Shield size={18} /> <Zap size={18} />
-          </div>
-          <h2 className="landing__cta-title">
-            Prêt à transformer votre pratique juridique ?
-          </h2>
-          <p className="landing__cta-sub">
-            Rejoignez les professionnels qui font confiance à Lexis AI.
-          </p>
-          <SignedOut>
-            <button
-              className="landing__btn landing__btn--white landing__btn--lg"
-              onClick={() => navigate('/sign-up')}
-              id="cta-final"
+    <div className="landing-container">
+      <nav className="landing-nav">
+        <div className="nav-logo">LEXIS LAW</div>
+        <div className="nav-links">
+          {NAV_LINKS.map(({ label, href }) => (
+            <a
+              key={href}
+              href={href}
+              onClick={(e) => {
+                e.preventDefault();
+                scrollTo(href);
+              }}
             >
-              Commencer gratuitement <ArrowRight size={18} />
+              {label}
+            </a>
+          ))}
+        </div>
+        <div className="nav-actions">
+          <SignedOut>
+            <button type="button" className="sign-in-link" onClick={goToSignIn}>
+              Sign In
+            </button>
+            <button type="button" className="get-started-btn" onClick={goToSignUp}>
+              Get Started
             </button>
           </SignedOut>
           <SignedIn>
-            <button
-              className="landing__btn landing__btn--white landing__btn--lg"
-              onClick={() => navigate('/chat')}
-            >
-              Accéder au Dashboard <ArrowRight size={18} />
+            <button type="button" className="get-started-btn" onClick={goToDashboard}>
+              Dashboard
             </button>
           </SignedIn>
         </div>
+      </nav>
+
+      <section className="hero-section">
+        <div className="landing-section-inner">
+        <div className="hero-pill">AUTOMATED LEGAL INTELLIGENCE</div>
+        <h1 className="hero-title">
+          Elite Legal Power,
+          <br />
+          Accessible to Everyone
+        </h1>
+        <p className="hero-subtitle">
+          Whether you are navigating a personal legal dispute or optimizing
+          <br />
+          your law practice, Lexis Law gives you instant, fact-checked
+          <br />
+          answers and generates professional legal documents in seconds.
+        </p>
+        <div className="hero-buttons">
+          <SignedOut>
+            <button type="button" className="btn-primary" onClick={goToSignUp}>
+              Ask a Legal Question
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => scrollTo('#ecosystem')}
+            >
+              Explore Pro Features
+            </button>
+          </SignedOut>
+          <SignedIn>
+            <button type="button" className="btn-primary" onClick={goToDashboard}>
+              Ask a Legal Question
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => scrollTo('#ecosystem')}
+            >
+              Explore Pro Features
+            </button>
+          </SignedIn>
+        </div>
+        </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="landing__footer">
-        <div className="landing__footer-inner">
-          <span>© 2026 Lexis AI. Tous droits réservés.</span>
-          <span className="landing__footer-credit">PFA — ChatBot Juridique RAG</span>
+      <section className="dark-stats-section landing-band-full" id="how-it-works">
+        <div className="landing-section-inner">
+        <div className="dark-pill">MEET YOUR NEW AI</div>
+        <h2>Stop guessing about your rights</h2>
+        <p>
+          Generate AI chat that returns exact answers. Visitors can actually reach the law. We
+          <br />
+          built a highly secure intelligence engine that searches through real legal
+          <br />
+          libraries and your private documents to give you clarity and confidence.
+        </p>
+
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon">
+              <Clock size={16} />
+            </div>
+            <div className="stat-content">
+              <div className="stat-label">AVG RESPONSE TIME</div>
+              <div className="stat-value">0.5s</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">
+              <FileText size={16} />
+            </div>
+            <div className="stat-content">
+              <div className="stat-label">DOCUMENT GENERATION</div>
+              <div className="stat-value">Instant</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">
+              <Zap size={16} />
+            </div>
+            <div className="stat-content">
+              <div className="stat-label">ESTIMATED COST</div>
+              <div className="stat-value">$25-250</div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section className="trusted-section">
+        <div className="landing-section-inner">
+        <h2>
+          Trusted by Everyday People and Legal
+          <br />
+          Professionals
+        </h2>
+        <p>
+          From individuals drafting DIY prenups to litigators searching complex case files,
+          <br />
+          our platform scales to your exact requirements.
+        </p>
+
+        <div className="features-pill-grid">
+          <div className="feature-pill">Fact-Checked Answers</div>
+          <div className="feature-pill">Bank-Grade Security</div>
+          <div className="feature-pill">Instant PDF Generation</div>
+          <div className="feature-pill">LaTeX Formatting</div>
+          <div className="feature-pill">Private Databases</div>
+          <div className="feature-pill">Real Precedents</div>
+          <div className="feature-pill">Zero Latency</div>
+          <div className="feature-pill">Deterministic AI</div>
+        </div>
+        </div>
+      </section>
+
+      <section className="clarity-section">
+        <div className="landing-section-inner clarity-section-inner">
+        <div className="clarity-left">
+          <div className="clarity-pill">OUR PLATFORM</div>
+          <h2>
+            Clarity and
+            <br />
+            power, without
+            <br />
+            the hourly fees
+          </h2>
+          <p>
+            Skip the confusing legal jargon and expensive
+            <br />
+            consultations for basic research. We empower you to
+            <br />
+            understand your situation, review contracts, and take
+            <br />
+            definitive legal action.
+          </p>
+        </div>
+        <div className="clarity-right">
+          <div className="clarity-card">
+            <Shield size={20} className="card-icon" />
+            <h3>Fact-Checked Answers</h3>
+            <p>
+              Lexis AI cross-references thousands of legal precedents across specific
+              jurisdictions to tell you exactly where your situation stands today.
+            </p>
+          </div>
+          <div className="clarity-card">
+            <FileText size={20} className="card-icon" />
+            <h3>Instant Document Generation</h3>
+            <p>
+              Export perfectly formatted PDFs for a contract, business professional, court
+              filing, or NDA instantaneously.
+            </p>
+          </div>
+          <div className="clarity-card">
+            <Lock size={20} className="card-icon" />
+            <h3>Total Privacy & Security</h3>
+            <p>
+              Your documents are strictly your business. We use SOC-2 compliance so your data
+              is never shared or leaked.
+            </p>
+          </div>
+          <div className="clarity-card">
+            <Zap size={20} className="card-icon" />
+            <h3>Zero Time & Money</h3>
+            <p>
+              Get clarity on your legal situation in minutes, not weeks. Perfect for both
+              individuals and busy lawyers.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section className="common-questions-section" id="use-cases">
+        <div className="landing-section-inner">
+        <div className="cq-header" id="faq">
+          <h2>Common Questions</h2>
+          <button type="button" className="faq-btn" onClick={() => scrollTo('#faq')}>
+            FAQ
+          </button>
+        </div>
+        <div className="cq-grid">
+          <div className="cq-card">
+            <div className="cq-image img-1" />
+            <div className="cq-content">
+              <h3>For Individuals & Businesses</h3>
+              <p>Everything you need to know about everyday law, safely and effectively.</p>
+              <div className="cq-features">
+                <div className="cq-feature">
+                  <Check size={14} /> Plain language answers to complex legal questions
+                </div>
+                <div className="cq-feature">
+                  <Check size={14} /> Create, edit and format standard contracts
+                </div>
+              </div>
+              <div className="cq-actions">
+                <button type="button" className="btn-dark-small">
+                  FAQ
+                </button>
+                <button type="button" className="btn-light-small">
+                  Pricing
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="cq-card">
+            <div className="cq-image img-2" />
+            <div className="cq-content">
+              <h3>For Legal Professionals</h3>
+              <p>Everything you need to know about everyday law, safely and effectively.</p>
+              <div className="cq-features">
+                <div className="cq-feature">
+                  <Check size={14} /> Interrogate private documents securely via our RAG
+                </div>
+                <div className="cq-feature">
+                  <Check size={14} /> Export to our native LaTeX editor for perfect PDFs
+                </div>
+              </div>
+              <div className="cq-actions">
+                <button type="button" className="btn-dark-small">
+                  FAQ
+                </button>
+                <button type="button" className="btn-light-small">
+                  Pricing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section className="dual-section" id="ecosystem">
+        <div className="landing-section-inner dual-section-inner">
+        <div className="dual-left">
+          <div className="dual-pill">BUILT FOR THE PUBLIC</div>
+          <h2>
+            Built for the public.
+            <br />
+            Powerful enough
+            <br />
+            for professionals.
+          </h2>
+          <p>
+            A completely secure environment to take you from your very first
+            <br />
+            legal question to a finished, beautifully formatted document.
+          </p>
+        </div>
+        <div className="dual-right">
+          <div className="feature-row dark">
+            <MessageSquare size={20} />
+            <div className="fr-content">
+              <h4>AI Legal Assistant</h4>
+              <p>
+                Ask questions, analyze risk, explore case outcomes, and draft communications,
+                all within the program.
+              </p>
+            </div>
+          </div>
+          <div className="feature-row dark">
+            <Database size={20} />
+            <div className="fr-content">
+              <h4>Private Legal Database</h4>
+              <p>
+                Upload your own libraries, contracts, or case files, and chat with everything
+                securely without data leaving.
+              </p>
+            </div>
+          </div>
+          <div className="feature-row dark">
+            <Edit2 size={20} />
+            <div className="fr-content">
+              <h4>Smart Document Editor</h4>
+              <p>
+                Write alongside AI, suggest edits, and use our LaTeX editor to compile perfectly
+                formatted, ready PDFs.
+              </p>
+            </div>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section className="empower-section" id="testimonials">
+        <div className="landing-section-inner">
+        <div className="empower-pill">HEAR IT FROM USERS</div>
+        <h2>
+          Empowering people
+          <br />
+          and practitioners
+        </h2>
+        <p>See how Lexis Law is changing the way people interact with the legal system.</p>
+
+        <div className="testimonials">
+          <div className="testimonial-card">
+            <div className="t-avatar a1" />
+            <div className="t-content">
+              <p>
+                &ldquo;I was terrified when my landlord sent me a notice. Lexis Law explained my
+                rights clearly and helped me draft a formal response letter in 5 minutes.&rdquo;
+              </p>
+              <div className="t-author">
+                <strong>JESSICA T.</strong>
+                <span>Small Business Owner</span>
+              </div>
+            </div>
+          </div>
+          <div className="testimonial-card">
+            <div className="t-avatar a2" />
+            <div className="t-content">
+              <p>
+                &ldquo;As a solo lawyer, I don&apos;t have a team of paralegals. Uploading a
+                200-page dossier and instantly finding contradictions has saved me countless
+                billable hours.&rdquo;
+              </p>
+              <div className="t-author">
+                <strong>DAVID M.</strong>
+                <span>Independent Attorney</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <footer className="landing-footer landing-band-full">
+        <div className="footer-content">
+          <div className="footer-logo">LEXIS LAW</div>
+          <div className="footer-links">
+            <span>Privacy Policy</span>
+            <span>Terms of Service</span>
+            <span>Security & Compliance</span>
+            <span>Regulatory Disclosures</span>
+            <span>Contact Support</span>
+          </div>
         </div>
       </footer>
     </div>

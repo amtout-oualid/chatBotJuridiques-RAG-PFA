@@ -81,6 +81,10 @@ class ChatSessionListResponse(BaseModel):
 class MessageCreate(BaseModel):
     """POST /chats/{id}/messages — user sends a prompt."""
     contenu: str = Field(..., min_length=1, description="User message content")
+    file_id: Optional[uuid.UUID] = Field(
+        None,
+        description="Optional uploaded file ID from /files to use as RAG context",
+    )
 
 
 class MessageResponse(BaseModel):

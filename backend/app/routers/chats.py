@@ -3,6 +3,7 @@ routers/chats.py — AI Chat (Legal Assistant) routes.
 
 Routes:
     GET    /chats              — List all chat sessions
+    GET    /chats/search       — Search sessions by title or message content
     POST   /chats              — Create a new chat session
     GET    /chats/{id}         — Get all messages for a session
     POST   /chats/{id}/messages — Send a prompt, get AI response
@@ -43,6 +44,24 @@ async def list_sessions(
     db: AsyncSession = Depends(get_db),
 ) -> ChatSessionListResponse:
     sessions = await chat_service.get_user_sessions(db, clerk_id)
+    return ChatSessionListResponse(sessions=sessions)
+
+
+@router.get(
+    "/search",
+    response_model=ChatSessionListResponse,
+    summary="Search chat sessions",
+    description=(
+        "Returns sessions whose title or any message content matches the query "
+        "(case-insensitive)."
+    ),
+)
+async def search_sessions(
+    query: str = Query(..., min_length=1, description="Search keyword"),
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ChatSessionListResponse:
+    sessions = await chat_service.search_sessions(db, clerk_id, query)
     return ChatSessionListResponse(sessions=sessions)
 
 
@@ -108,7 +127,13 @@ async def send_message(
             detail="Session not found.",
         )
 
-    result = await chat_service.send_message(db, session_id, clerk_id, data)
+    try:
+        result = await chat_service.send_message(db, session_id, clerk_id, data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     return {
         "user_message": MessageResponse.model_validate(result["user_message"]),
         "ai_message": MessageResponse.model_validate(result["ai_message"]),

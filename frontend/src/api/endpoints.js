@@ -10,6 +10,7 @@ export const ENDPOINTS = {
 
   // 2. AI Chat
   CHATS:           '/chats',
+  CHATS_SEARCH:    '/chats/search',
   CHAT_BY_ID:      (id) => `/chats/${id}`,
   CHAT_MESSAGES:   (id) => `/chats/${id}/messages`,
 

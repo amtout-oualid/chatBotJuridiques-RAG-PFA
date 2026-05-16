@@ -7,12 +7,13 @@ Implements the queries from queriesReference.sql §3 & §4.
 import uuid
 from typing import List, Optional
 
-from sqlalchemy import select, text, update
+from sqlalchemy import or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai import call_legal_ai
 from app.models import MessageIA, SessionIA
 from app.schemas import ChatSessionCreate, ChatSessionUpdate, MessageCreate
+from app.services import file_service
 
 
 # ─────────────────────────────────────────────────────────
@@ -59,6 +60,33 @@ async def get_user_sessions(
         .where(
             SessionIA.utilisateur_id == clerk_id,
             SessionIA.is_deleted == False,
+        )
+        .order_by(SessionIA.epingle.desc(), SessionIA.date_modif.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def search_sessions(
+    db: AsyncSession,
+    clerk_id: str,
+    query: str,
+) -> List[SessionIA]:
+    """
+    Search sessions where the keyword appears in the title or any message body.
+    Case-insensitive (ilike). Returns distinct sessions, newest activity first.
+    """
+    pattern = f"%{query.strip()}%"
+    result = await db.execute(
+        select(SessionIA)
+        .distinct()
+        .outerjoin(MessageIA, MessageIA.session_id == SessionIA.id)
+        .where(
+            SessionIA.utilisateur_id == clerk_id,
+            SessionIA.is_deleted == False,
+            or_(
+                SessionIA.titre.ilike(pattern),
+                MessageIA.contenu.ilike(pattern),
+            ),
         )
         .order_by(SessionIA.epingle.desc(), SessionIA.date_modif.desc())
     )
@@ -137,15 +165,32 @@ async def send_message(
     db.add(user_msg)
     await db.flush()  # get the ID without committing
 
-    # 2. Call AI
-    ai_response_text = await call_legal_ai(data.contenu)
+    # 2. Build prompt (optional file context from user's database)
+    prompt = data.contenu
+    sources_rag = None
+    if data.file_id:
+        file_record = await file_service.get_file_by_id(db, data.file_id, clerk_id)
+        if not file_record:
+            raise ValueError("File not found or not owned by you.")
+        file_context = await file_service.read_file_context(file_record)
+        prompt = (
+            f"{data.contenu}\n\n"
+            f"Utilise le document suivant comme contexte pour ta réponse :\n\n"
+            f"{file_context}"
+        )
+        sources_rag = {
+            "file_id": str(file_record.id),
+            "nom_fichier": file_record.nom_fichier,
+        }
+
+    ai_response_text = await call_legal_ai(prompt)
 
     # 3. Insert AI message
     ai_msg = MessageIA(
         session_id=session_id,
         auteur="ia",
         contenu=ai_response_text,
-        sources_rag=None,  # RAG sources will be added later
+        sources_rag=sources_rag,
     )
     db.add(ai_msg)
 

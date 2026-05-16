@@ -2,15 +2,17 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Plus,
-  Send,
-  Pin,
-  Trash2,
-  Edit3,
-  Check,
+  Edit2,
+  ArrowUp,
   X,
   Loader2,
-  MessageSquare,
+  FileText,
+  Search,
 } from 'lucide-react';
+import Sidebar from '../components/Sidebar';
+import Topbar from '../components/Topbar';
+import ChatSessionList from '../components/ChatSessionList';
+import FileAttachModal from '../components/FileAttachModal';
 import { chatService } from '../services/chatService';
 import './ChatPage.css';
 
@@ -18,7 +20,6 @@ export default function ChatPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
 
   const [sessions, setSessions] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -26,13 +27,22 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [editTitle, setEditTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [attachModalOpen, setAttachModalOpen] = useState(false);
+  const [attachedFile, setAttachedFile] = useState(null);
 
-  // Load sessions
-  const loadSessions = useCallback(async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchSessions = useCallback(async (query = '') => {
+    setLoadingSessions(true);
     try {
-      const res = await chatService.listSessions();
+      const res = query
+        ? await chatService.searchSessions(query)
+        : await chatService.listSessions();
       setSessions(res.data.sessions || []);
     } catch {
       /* ignore */
@@ -42,10 +52,9 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+    fetchSessions(debouncedSearch);
+  }, [debouncedSearch, fetchSessions]);
 
-  // Load messages when sessionId changes
   useEffect(() => {
     if (!sessionId) {
       setMessages([]);
@@ -63,72 +72,105 @@ export default function ChatPage() {
     })();
   }, [sessionId, navigate]);
 
-  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, sending]);
 
-  // Create new session
   const handleNewChat = async () => {
     try {
       const res = await chatService.createSession();
-      await loadSessions();
+      await fetchSessions(debouncedSearch);
+      setAttachedFile(null);
       navigate(`/chat/${res.data.id}`);
     } catch {
       /* ignore */
     }
   };
 
-  // Send message
+  const handleRename = async (id, titre) => {
+    try {
+      await chatService.updateSession(id, { titre });
+      await fetchSessions(debouncedSearch);
+      if (currentSession?.id === id) {
+        setCurrentSession((s) => (s ? { ...s, titre } : s));
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleTogglePin = async (session) => {
+    try {
+      await chatService.updateSession(session.id, { epingle: !session.epingle });
+      await fetchSessions(debouncedSearch);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await chatService.deleteSession(id);
+      if (sessionId === id) navigate('/chat');
+      await fetchSessions(debouncedSearch);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || sending) return;
 
     let targetId = sessionId;
 
-    // Auto-create session if none selected
     if (!targetId) {
       try {
         const res = await chatService.createSession(input.slice(0, 50));
         targetId = res.data.id;
         navigate(`/chat/${targetId}`, { replace: true });
-        await loadSessions();
+        await fetchSessions(debouncedSearch);
       } catch {
         return;
       }
     }
 
     const userContent = input.trim();
+    const fileId = attachedFile?.id ?? null;
     setInput('');
     setSending(true);
 
-    // Optimistic UI — add user message immediately
     const tempUserMsg = {
       id: `temp-${Date.now()}`,
       auteur: 'user',
       contenu: userContent,
+      attachedFileName: attachedFile?.nom_fichier,
       date_creation: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const res = await chatService.sendMessage(targetId, userContent);
-      // Replace temp with real messages
+      const res = await chatService.sendMessage(targetId, userContent, fileId);
+      const userMsg = { ...res.data.user_message };
+      if (attachedFile?.nom_fichier) {
+        userMsg.attachedFileName = attachedFile.nom_fichier;
+      }
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== tempUserMsg.id),
-        res.data.user_message,
+        userMsg,
         res.data.ai_message,
       ]);
-      loadSessions();
+      setAttachedFile(null);
+      await fetchSessions(debouncedSearch);
+      const sessionRes = await chatService.getSession(targetId);
+      setCurrentSession(sessionRes.data.session);
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
       setInput(userContent);
     } finally {
       setSending(false);
-      inputRef.current?.focus();
     }
   };
 
-  // Key handler
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -136,261 +178,142 @@ export default function ChatPage() {
     }
   };
 
-  // Delete session
-  const handleDelete = async (id) => {
-    try {
-      await chatService.deleteSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      if (sessionId === id) navigate('/chat');
-    } catch {
-      /* ignore */
-    }
-  };
-
-  // Toggle pin
-  const handleTogglePin = async (session) => {
-    try {
-      await chatService.updateSession(session.id, {
-        epingle: !session.epingle,
-      });
-      loadSessions();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  // Rename
-  const handleRename = async (id) => {
-    if (!editTitle.trim()) return;
-    try {
-      await chatService.updateSession(id, { titre: editTitle.trim() });
-      setEditingId(null);
-      loadSessions();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const pinned = sessions.filter((s) => s.epingle);
-  const recent = sessions.filter((s) => !s.epingle);
+  const sessionTitle = currentSession?.titre || 'New Chat';
+  const hasMessages = messages.length > 0;
+  const isSearching = debouncedSearch.length > 0;
 
   return (
-    <div className="chat-page">
-      {/* ── Sidebar ── */}
-      <aside className="chat-sidebar" id="chat-sidebar">
-        <div className="chat-sidebar__header">
-          <h2 className="chat-sidebar__title">SESSIONS</h2>
-          <button
-            className="chat-sidebar__new"
-            onClick={handleNewChat}
-            title="Nouvelle discussion"
-            id="new-chat-btn"
-          >
-            <Plus size={18} />
-          </button>
+    <div className="layout-container chat-page-root">
+      <Sidebar />
+      <div className="secondary-sidebar">
+        <button type="button" className="new-chat-btn" onClick={handleNewChat}>
+          <span>NEW CHAT</span>
+          <Plus size={16} />
+        </button>
+
+        <div className="chat-global-search">
+          <Search size={16} color="#999" />
+          <input
+            type="search"
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search all chats and messages"
+          />
         </div>
 
-        <div className="chat-sidebar__list">
-          {pinned.length > 0 && (
-            <>
-              <span className="chat-sidebar__label">ÉPINGLÉES</span>
-              {pinned.map((s) => (
-                <SessionItem
-                  key={s.id}
-                  session={s}
-                  active={sessionId === s.id}
-                  editingId={editingId}
-                  editTitle={editTitle}
-                  onSelect={() => navigate(`/chat/${s.id}`)}
-                  onDelete={() => handleDelete(s.id)}
-                  onPin={() => handleTogglePin(s)}
-                  onStartEdit={() => {
-                    setEditingId(s.id);
-                    setEditTitle(s.titre || '');
-                  }}
-                  onCancelEdit={() => setEditingId(null)}
-                  onConfirmEdit={() => handleRename(s.id)}
-                  onEditChange={setEditTitle}
-                />
-              ))}
-            </>
-          )}
-
-          {recent.length > 0 && (
-            <>
-              <span className="chat-sidebar__label">RÉCENTES</span>
-              {recent.map((s) => (
-                <SessionItem
-                  key={s.id}
-                  session={s}
-                  active={sessionId === s.id}
-                  editingId={editingId}
-                  editTitle={editTitle}
-                  onSelect={() => navigate(`/chat/${s.id}`)}
-                  onDelete={() => handleDelete(s.id)}
-                  onPin={() => handleTogglePin(s)}
-                  onStartEdit={() => {
-                    setEditingId(s.id);
-                    setEditTitle(s.titre || '');
-                  }}
-                  onCancelEdit={() => setEditingId(null)}
-                  onConfirmEdit={() => handleRename(s.id)}
-                  onEditChange={setEditTitle}
-                />
-              ))}
-            </>
-          )}
-
-          {!loadingSessions && sessions.length === 0 && (
-            <div className="chat-sidebar__empty">
-              <MessageSquare size={24} opacity={0.3} />
-              <span>Aucune discussion</span>
-            </div>
-          )}
+        <div className="chat-session-scroll">
+          <ChatSessionList
+            sessions={sessions}
+            activeSessionId={sessionId}
+            loading={loadingSessions}
+            isSearching={isSearching}
+            onSelect={(id) => navigate(`/chat/${id}`)}
+            onRename={handleRename}
+            onTogglePin={handleTogglePin}
+            onDelete={handleDelete}
+          />
         </div>
-      </aside>
+      </div>
 
-      {/* ── Chat Area ── */}
-      <div className="chat-main">
-        {/* Messages */}
-        <div className="chat-messages" id="chat-messages">
-          {!sessionId && messages.length === 0 && (
-            <div className="chat-empty">
-              <div className="chat-empty__icon">⚖</div>
-              <h2 className="chat-empty__title">
-                Assistant Juridique IA
-              </h2>
-              <p className="chat-empty__sub">
-                Posez une question juridique pour commencer une nouvelle discussion.
-              </p>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div
-              key={msg.id || i}
-              className={`chat-msg chat-msg--${msg.auteur} fade-in`}
-            >
-              <div className="chat-msg__avatar">
-                {msg.auteur === 'user' ? 'U' : '⚖'}
-              </div>
-              <div className="chat-msg__body">
-                <span className="chat-msg__role">
-                  {msg.auteur === 'user' ? 'Vous' : 'Lexis AI'}
-                </span>
-                <div className="chat-msg__content">
-                  {msg.contenu}
+      <div className="main-content">
+        <Topbar />
+        <div className="chat-area">
+          <div className="chat-history">
+            {!hasMessages && !sending && (
+              <div className="chat-header-center">
+                <div className="icon-box">
+                  <Edit2 size={24} strokeWidth={1.5} />
                 </div>
+                <h1>{sessionTitle}</h1>
+                <p>
+                  I am ready to analyze your legal questions. Attach a document
+                  <br />
+                  from your database using the + button, then send your prompt.
+                </p>
               </div>
-            </div>
-          ))}
+            )}
 
-          {sending && (
-            <div className="chat-msg chat-msg--ia chat-msg--loading fade-in">
-              <div className="chat-msg__avatar">⚖</div>
-              <div className="chat-msg__body">
-                <span className="chat-msg__role">Lexis AI</span>
-                <div className="chat-msg__content">
-                  <Loader2 size={18} className="chat-msg__spinner" />
-                  Analyse en cours...
+            {messages.map((msg, i) =>
+              msg.auteur === 'user' ? (
+                <div key={msg.id || i} className="user-message">
+                  {msg.attachedFileName && (
+                    <span className="attached-file">
+                      <FileText size={14} />
+                      {msg.attachedFileName}
+                    </span>
+                  )}
+                  <p>{msg.contenu}</p>
                 </div>
+              ) : (
+                <div key={msg.id || i} className="ai-message">
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{msg.contenu}</p>
+                </div>
+              ),
+            )}
+
+            {sending && (
+              <div className="chat-loading">
+                <Loader2 size={18} className="spinner" />
+                Lexis AI is analyzing...
               </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="chat-input-container">
+            {attachedFile && (
+              <div className="attachment-chip">
+                <FileText size={14} />
+                <span>{attachedFile.nom_fichier}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedFile(null)}
+                  aria-label="Remove attachment"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            <div className="chat-input-box">
+              <Plus
+                size={20}
+                className="input-icon"
+                color="#666"
+                onClick={() => setAttachModalOpen(true)}
+                aria-label="Attach file from database"
+              />
+              <input
+                type="text"
+                placeholder="Message Lexis AI or type '/' for commands..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={sending}
+              />
+              <button
+                type="button"
+                className="send-btn"
+                onClick={handleSend}
+                disabled={!input.trim() || sending}
+                aria-label="Send message"
+              >
+                <ArrowUp size={16} color="#fff" />
+              </button>
             </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="chat-input-bar" id="chat-input-bar">
-          <div className="chat-input-wrapper">
-            <textarea
-              ref={inputRef}
-              className="chat-input"
-              placeholder="Posez votre question juridique..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              disabled={sending}
-              id="chat-input"
-            />
-            <button
-              className="chat-send-btn"
-              onClick={handleSend}
-              disabled={!input.trim() || sending}
-              title="Envoyer"
-              id="chat-send-btn"
-            >
-              <Send size={18} />
-            </button>
+            <div className="disclaimer">
+              Lexis AI can make mistakes. Consider verifying critical legal assertions.
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-/* ── Session Item Component ── */
-function SessionItem({
-  session,
-  active,
-  editingId,
-  editTitle,
-  onSelect,
-  onDelete,
-  onPin,
-  onStartEdit,
-  onCancelEdit,
-  onConfirmEdit,
-  onEditChange,
-}) {
-  const isEditing = editingId === session.id;
-
-  return (
-    <div
-      className={`session-item ${active ? 'session-item--active' : ''}`}
-      onClick={!isEditing ? onSelect : undefined}
-    >
-      {isEditing ? (
-        <div className="session-item__edit" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => onEditChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onConfirmEdit()}
-            autoFocus
-            className="session-item__edit-input"
-          />
-          <button onClick={onConfirmEdit} title="Confirmer">
-            <Check size={14} />
-          </button>
-          <button onClick={onCancelEdit} title="Annuler">
-            <X size={14} />
-          </button>
-        </div>
-      ) : (
-        <>
-          <span className="session-item__title">
-            {session.epingle && <Pin size={12} className="session-item__pin-icon" />}
-            {session.titre || 'Nouvelle Discussion'}
-          </span>
-          <div
-            className="session-item__actions"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button onClick={onStartEdit} title="Renommer">
-              <Edit3 size={13} />
-            </button>
-            <button onClick={onPin} title={session.epingle ? 'Désépingler' : 'Épingler'}>
-              <Pin size={13} />
-            </button>
-            <button onClick={onDelete} title="Supprimer">
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </>
-      )}
+      <FileAttachModal
+        open={attachModalOpen}
+        onClose={() => setAttachModalOpen(false)}
+        onSelect={setAttachedFile}
+        selectedFileId={attachedFile?.id}
+      />
     </div>
   );
 }

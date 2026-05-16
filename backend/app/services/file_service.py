@@ -20,6 +20,59 @@ from app.schemas import FileResponse
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
 
+async def get_file_by_id(
+    db: AsyncSession,
+    file_id: uuid.UUID,
+    clerk_id: str,
+) -> Optional[FichierUtilisateur]:
+    """Fetch a single file owned by the user."""
+    result = await db.execute(
+        select(FichierUtilisateur).where(
+            FichierUtilisateur.id == file_id,
+            FichierUtilisateur.utilisateur_id == clerk_id,
+        )
+    )
+    return result.scalars().first()
+
+
+async def read_file_context(
+    file_record: FichierUtilisateur,
+    max_chars: int = 15000,
+) -> str:
+    """Read text content from an uploaded file for AI context."""
+    path = file_record.url_stockage
+    name = file_record.nom_fichier
+
+    if not os.path.exists(path):
+        return f"[Document joint: {name} — fichier introuvable]"
+
+    ext = os.path.splitext(name)[1].lower()
+    text_exts = {".txt", ".md", ".tex", ".csv", ".json", ".html", ".xml"}
+
+    try:
+        if ext in text_exts or ext == "":
+            async with aiofiles.open(path, "r", encoding="utf-8", errors="replace") as f:
+                content = await f.read(max_chars)
+            return f"--- Document joint: {name} ---\n{content}"
+
+        async with aiofiles.open(path, "rb") as f:
+            raw = await f.read(min(512_000, max_chars * 4))
+
+        try:
+            content = raw.decode("utf-8", errors="ignore")[:max_chars]
+            if content.strip():
+                return f"--- Document joint: {name} ---\n{content}"
+        except Exception:
+            pass
+
+        return (
+            f"[Document joint: {name} — format binaire ou PDF. "
+            f"Référencez ce document par son nom dans votre analyse.]"
+        )
+    except OSError:
+        return f"[Document joint: {name} — erreur de lecture]"
+
+
 async def get_user_files(
     db: AsyncSession,
     clerk_id: str,
