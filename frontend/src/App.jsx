@@ -109,6 +109,24 @@ export default function App() {
         }
       />
 
+      {/* Protected — Editor (newfront shell, no MainLayout) */}
+      <Route
+        path="/editor"
+        element={
+          <ProtectedRoute>
+            <EditorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/editor/:documentId"
+        element={
+          <ProtectedRoute>
+            <EditorPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Protected — MainLayout shell */}
       <Route
         element={
@@ -117,8 +135,6 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/editor" element={<EditorPage />} />
-        <Route path="/editor/:documentId" element={<EditorPage />} />
         <Route path="/lawyers" element={<LawyersPage />} />
       </Route>
 

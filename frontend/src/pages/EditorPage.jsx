@@ -1,43 +1,61 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  Save,
-  Play,
-  Sparkles,
-  FileText,
+import { 
+  Plus, 
+  Folder, 
+  FileCode, 
+  Settings, 
+  FileText, 
+  MoreHorizontal, 
+  Send, 
+  Paperclip,
+  ArrowLeft,
   Trash2,
-  Loader2,
-  ChevronLeft,
+  Upload
 } from 'lucide-react';
+import Sidebar from '../components/Sidebar';
 import { editorService } from '../services/editorService';
+import { fileService } from '../services/fileService';
+import { chatService } from '../services/chatService'; // For AI chat if needed or editorService.aiSuggest
 import './EditorPage.css';
 
-export default function EditorPage() {
+const EditorPage = () => {
   const { documentId } = useParams();
   const navigate = useNavigate();
 
+  // Documents & State A
   const [documents, setDocuments] = useState([]);
-  const [templates, setTemplates] = useState([]);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+
+  // Editor & State B
   const [currentDoc, setCurrentDoc] = useState(null);
   const [code, setCode] = useState('');
   const [saving, setSaving] = useState(false);
-  const [compiling, setCompiling] = useState(false);
+  
+  // View mode
+  const [viewMode, setViewMode] = useState('code'); // 'code' | 'visual'
   const [compileResult, setCompileResult] = useState(null);
+  const [compiling, setCompiling] = useState(false);
+
+  // AI Assistant
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [loadingDocs, setLoadingDocs] = useState(true);
-
+  const [aiMessages, setAiMessages] = useState([
+    {
+      role: 'ai',
+      content: 'I noticed you are working on a LaTeX document. Would you like me to help write sections, suggest citations, or fix formatting errors?'
+    }
+  ]);
+  
+  // Ref for auto-save
   const autoSaveTimer = useRef(null);
 
-  // Load documents list
   const loadDocuments = useCallback(async () => {
     try {
       const res = await editorService.listDocuments();
       setDocuments(res.data.documents || []);
     } catch {
-      /* ignore */
+      // ignore
     } finally {
       setLoadingDocs(false);
     }
@@ -47,23 +65,11 @@ export default function EditorPage() {
     loadDocuments();
   }, [loadDocuments]);
 
-  // Load templates
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await editorService.listTemplates();
-        setTemplates(res.data.templates || []);
-      } catch {
-        /* ignore */
-      }
-    })();
-  }, []);
-
-  // Load document when ID changes
   useEffect(() => {
     if (!documentId) {
       setCurrentDoc(null);
       setCode('');
+      setCompileResult(null);
       return;
     }
     (async () => {
@@ -71,6 +77,7 @@ export default function EditorPage() {
         const res = await editorService.getDocument(documentId);
         setCurrentDoc(res.data);
         setCode(res.data.latex_contenu || '');
+        setCompileResult(null);
       } catch {
         navigate('/editor');
       }
@@ -84,264 +91,391 @@ export default function EditorPage() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       try {
+        setSaving(true);
         await editorService.updateDocument(documentId, { latex_contenu: code });
       } catch {
-        /* ignore */
+        // ignore
+      } finally {
+        setSaving(false);
       }
     }, 2000);
 
     return () => clearTimeout(autoSaveTimer.current);
   }, [code, documentId, currentDoc]);
 
-  // Create new document
-  const handleCreate = async (templateId = null) => {
+  const handleCreate = async () => {
     try {
       const data = {
-        titre: 'Document sans titre',
-        latex_contenu: '',
+        titre: 'Untitled Project',
+        latex_contenu: '\\documentclass{article}\n\\begin{document}\n\nHello World\n\n\\end{document}',
       };
-      if (templateId) data.modele_id = templateId;
       const res = await editorService.createDocument(data);
       await loadDocuments();
       navigate(`/editor/${res.data.id}`);
-      setShowTemplates(false);
     } catch {
-      /* ignore */
+      // ignore
     }
   };
 
-  // Save
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await editorService.deleteDocument(id);
+      setDocuments((prev) => prev.filter((d) => d.id !== id));
+      if (documentId === id) navigate('/editor');
+    } catch {
+      // ignore
+    }
+  };
+
   const handleSave = async () => {
     if (!documentId) return;
     setSaving(true);
     try {
       await editorService.updateDocument(documentId, { latex_contenu: code });
     } catch {
-      /* ignore */
+      // ignore
     } finally {
       setSaving(false);
     }
   };
 
-  // Compile
   const handleCompile = async () => {
+    if (!code) return;
     setCompiling(true);
-    setCompileResult(null);
     try {
       const res = await editorService.compileLaTeX(code);
       setCompileResult(res.data);
-    } catch {
-      setCompileResult({ success: false, errors: 'Erreur réseau' });
+    } catch (err) {
+      console.error(err);
+      setCompileResult({ success: false, errors: 'Network error or compilation failed' });
     } finally {
       setCompiling(false);
     }
   };
 
-  // AI Suggest
+  // Switch view triggers compile if moving to visual
+  const handleViewToggle = async (mode) => {
+    setViewMode(mode);
+    if (mode === 'visual' && !compileResult && code) {
+      handleCompile();
+    }
+  };
+
+  const handleExport = () => {
+    if (!compileResult?.pdf_base64) {
+      alert("Please compile the document to Visual View first before exporting.");
+      return;
+    }
+    
+    // Trigger download
+    const linkSource = `data:application/pdf;base64,${compileResult.pdf_base64}`;
+    const downloadLink = document.createElement("a");
+    downloadLink.href = linkSource;
+    downloadLink.download = `${currentDoc?.titre || 'document'}.pdf`;
+    downloadLink.click();
+  };
+
   const handleAiSuggest = async () => {
     if (!aiPrompt.trim()) return;
+    const userMessage = { role: 'user', content: aiPrompt };
+    setAiMessages(prev => [...prev, userMessage]);
+    setAiPrompt('');
     setAiLoading(true);
     try {
-      const res = await editorService.aiSuggest(code, aiPrompt);
+      const res = await editorService.aiSuggest(code, userMessage.content);
       setCode(res.data.suggested_code);
-      setAiPrompt('');
+      setAiMessages(prev => [...prev, { role: 'ai', content: 'I have updated the code with my suggestions. Please review the changes.' }]);
     } catch {
-      /* ignore */
+      setAiMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error modifying the code.' }]);
     } finally {
       setAiLoading(false);
     }
   };
 
-  // Delete
-  const handleDelete = async (id) => {
+  // Dummy file upload to demonstrate UI asset handling
+  const fileInputRef = useRef(null);
+  const [uploadingAsset, setUploadingAsset] = useState(false);
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAsset(true);
     try {
-      await editorService.deleteDocument(id);
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
-      if (documentId === id) navigate('/editor');
-    } catch {
-      /* ignore */
+      await fileService.uploadFile(file);
+      alert('Asset uploaded successfully! You can reference it in your LaTeX code.');
+    } catch (err) {
+      alert('Failed to upload asset.');
+    } finally {
+      setUploadingAsset(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div className="editor-page">
-      {/* ── Sidebar: Documents List ── */}
-      <aside className="editor-sidebar" id="editor-sidebar">
-        <div className="editor-sidebar__header">
-          <h2 className="editor-sidebar__title">DOCUMENTS</h2>
-          <button
-            className="editor-sidebar__new"
-            onClick={() => setShowTemplates(!showTemplates)}
-            title="Nouveau document"
-            id="new-doc-btn"
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-
-        {/* Templates dropdown */}
-        {showTemplates && (
-          <div className="editor-templates">
-            <button
-              className="editor-template-item"
-              onClick={() => handleCreate()}
-            >
-              <FileText size={14} /> Document vide
-            </button>
-            {templates.map((t) => (
-              <button
-                key={t.id}
-                className="editor-template-item"
-                onClick={() => handleCreate(t.id)}
-              >
-                <FileText size={14} /> {t.nom}
+    <div className="layout-container">
+      <Sidebar activePage="latex" hideText={true} />
+      
+      {/* ── LEFT PANE: SIDEBAR ── */}
+      <div className="workspace-sidebar">
+        {!documentId ? (
+          // STATE A: Projects List
+          <div className="state-a-projects">
+            <div className="ws-header" style={{ paddingBottom: '15px' }}>
+              <span>LATEX PROJECTS</span>
+              <Plus size={16} cursor="pointer" onClick={handleCreate} />
+            </div>
+            <div style={{ padding: '20px' }}>
+              <button className="new-project-btn" onClick={handleCreate}>
+                <Plus size={16} /> NEW PROJECT
               </button>
-            ))}
+            </div>
+            <div className="ws-nav projects-list">
+              {loadingDocs ? (
+                <div style={{ padding: '20px', color: '#999', fontSize: '13px' }}>Loading projects...</div>
+              ) : documents.length === 0 ? (
+                <div style={{ padding: '20px', color: '#999', fontSize: '13px' }}>No projects yet.</div>
+              ) : (
+                documents.map(doc => (
+                  <div key={doc.id} className="ws-item project-item" onClick={() => navigate(`/editor/${doc.id}`)}>
+                    <FileText size={14} />
+                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {doc.titre || 'Untitled'}
+                    </span>
+                    <Trash2 
+                      size={14} 
+                      className="delete-icon"
+                      onClick={(e) => handleDelete(e, doc.id)}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          // STATE B: Project Files
+          <div className="state-b-files">
+            <div className="ws-header">
+              <span>WORKSPACE</span>
+              <Plus size={16} cursor="pointer" onClick={() => fileInputRef.current?.click()} />
+              <input type="file" ref={fileInputRef} hidden onChange={handleFileUpload} />
+            </div>
+            
+            <div className="back-btn-container" onClick={() => navigate('/editor')}>
+              <ArrowLeft size={14} />
+              <span>Back to Projects</span>
+            </div>
+
+            <div className="ws-nav">
+              <div className="ws-folder">
+                <div className="ws-item">
+                  <Folder size={14} />
+                  <span>src</span>
+                </div>
+                <div className="ws-subitems">
+                  <div className="ws-item active">
+                    <FileCode size={14} />
+                    <span>main.tex</span>
+                  </div>
+                  {/* Mock files for UX parity with design */}
+                  <div className="ws-item">
+                    <FileCode size={14} />
+                    <span>abstract.tex</span>
+                  </div>
+                  <div className="ws-item">
+                    <FileCode size={14} />
+                    <span>methods.tex</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="ws-item">
+                <Folder size={14} />
+                <span>figures</span>
+              </div>
+              
+              <div className="ws-item upload-asset-btn" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={14} />
+                <span>{uploadingAsset ? 'Uploading...' : 'Upload File/Image'}</span>
+              </div>
+              
+              <div className="ws-item" style={{ marginTop: '20px' }}>
+                <Settings size={14} />
+                <span>preamble.sty</span>
+              </div>
+              <div className="ws-item">
+                <FileText size={14} />
+                <span>references.bib</span>
+              </div>
+            </div>
           </div>
         )}
+      </div>
 
-        <div className="editor-sidebar__list">
-          {documents.map((doc) => (
-            <div
-              key={doc.id}
-              className={`editor-doc-item ${
-                documentId === doc.id ? 'editor-doc-item--active' : ''
-              }`}
-              onClick={() => navigate(`/editor/${doc.id}`)}
-            >
-              <div className="editor-doc-item__info">
-                <span className="editor-doc-item__title">
-                  {doc.titre || 'Sans titre'}
-                </span>
-                <span className="editor-doc-item__meta">
-                  {doc.statut === 'finalise' ? '✓ Finalisé' : 'Brouillon'}
-                </span>
-              </div>
-              <button
-                className="editor-doc-item__delete"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(doc.id);
-                }}
-                title="Supprimer"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
-
-          {!loadingDocs && documents.length === 0 && (
-            <div className="editor-sidebar__empty">
-              <FileText size={24} opacity={0.3} />
-              <span>Aucun document</span>
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* ── Editor Panel ── */}
+      {/* ── CENTER PANE: EDITOR & PDF ── */}
       <div className="editor-main">
         {!documentId ? (
-          <div className="editor-empty">
-            <FileText size={48} opacity={0.2} />
-            <h2>Éditeur LaTeX</h2>
-            <p>Sélectionnez un document ou créez-en un nouveau.</p>
-            <button
-              className="editor-empty__btn"
-              onClick={() => handleCreate()}
-              id="create-empty-doc"
-            >
-              <Plus size={16} /> Nouveau document
-            </button>
+          <div className="visual-editor" style={{ alignItems: 'center', backgroundColor: '#fff' }}>
+            <div style={{ textAlign: 'center', color: '#999' }}>
+              <FileCode size={48} style={{ opacity: 0.3, marginBottom: '20px' }} />
+              <h2 style={{ color: '#666', fontWeight: 600 }}>Select or create a project to start editing</h2>
+            </div>
           </div>
         ) : (
           <>
-            {/* Toolbar */}
-            <div className="editor-toolbar" id="editor-toolbar">
-              <div className="editor-toolbar__left">
-                <button
-                  className="editor-toolbar__btn"
-                  onClick={handleSave}
-                  disabled={saving}
-                  title="Sauvegarder"
-                >
-                  {saving ? (
-                    <Loader2 size={16} className="spin" />
-                  ) : (
-                    <Save size={16} />
-                  )}
-                  Sauvegarder
-                </button>
-                <button
-                  className="editor-toolbar__btn editor-toolbar__btn--accent"
-                  onClick={handleCompile}
-                  disabled={compiling}
-                  title="Compiler en PDF"
-                >
-                  {compiling ? (
-                    <Loader2 size={16} className="spin" />
-                  ) : (
-                    <Play size={16} />
-                  )}
-                  Compiler
-                </button>
-              </div>
-              <div className="editor-toolbar__right">
-                <div className="editor-ai-bar">
-                  <Sparkles size={14} className="editor-ai-icon" />
-                  <input
-                    className="editor-ai-input"
-                    placeholder="Demander à l'IA de modifier le code..."
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAiSuggest()}
-                    disabled={aiLoading}
-                    id="ai-suggest-input"
-                  />
-                  <button
-                    className="editor-ai-submit"
-                    onClick={handleAiSuggest}
-                    disabled={aiLoading || !aiPrompt.trim()}
+            <div className="editor-topbar">
+              <div className="editor-topbar-left">
+                <div className="doc-status">
+                  <FileCode size={16} color="#666" />
+                  <span className="doc-name">{currentDoc?.titre || 'main.tex'}</span>
+                  <span className="dot"></span>
+                  <span className="status-text">{saving ? 'Saving...' : 'Saved'}</span>
+                </div>
+                <div className="view-toggle">
+                  <span 
+                    className={`toggle-btn ${viewMode === 'code' ? 'active' : ''}`}
+                    onClick={() => handleViewToggle('code')}
                   >
-                    {aiLoading ? (
-                      <Loader2 size={14} className="spin" />
-                    ) : (
-                      'Suggérer'
-                    )}
+                    CODE VIEW
+                  </span>
+                  <span 
+                    className={`toggle-btn ${viewMode === 'visual' ? 'active' : ''}`}
+                    onClick={() => handleViewToggle('visual')}
+                  >
+                    VISUAL VIEW
+                  </span>
+                </div>
+                <div className="topbar-actions" style={{ display: 'flex', gap: '10px' }}>
+                  <button className="action-btn" onClick={handleSave} disabled={saving} style={{ padding: '6px 12px', minWidth: '80px' }}>
+                    Save
                   </button>
+                  <button className="action-btn" onClick={handleExport} style={{ padding: '6px 12px', minWidth: '80px' }}>
+                    Export
+                  </button>
+                </div>
+              </div>
+              <div className="editor-topbar-right">
+                <div className="assistant-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Settings size={16} />
+                    <span>ASSISTANT</span>
+                  </div>
+                  <MoreHorizontal size={16} cursor="pointer" />
                 </div>
               </div>
             </div>
 
-            {/* Compile result banner */}
-            {compileResult && (
-              <div
-                className={`editor-compile-result ${
-                  compileResult.success
-                    ? 'editor-compile-result--ok'
-                    : 'editor-compile-result--err'
-                }`}
-              >
-                {compileResult.success
-                  ? '✓ Compilation réussie'
-                  : `✗ Erreur: ${compileResult.errors}`}
-              </div>
-            )}
+            <div className="editor-content-area">
+              {viewMode === 'code' ? (
+                <div className="code-editor-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <textarea
+                    className="latex-textarea"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    spellCheck={false}
+                    placeholder="% Write LaTeX code here..."
+                  />
+                </div>
+              ) : (
+                <div className="visual-editor">
+                  {compiling ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#999' }}>
+                      Compiling PDF...
+                    </div>
+                  ) : compileResult?.pdf_base64 ? (
+                    <iframe 
+                      src={`data:application/pdf;base64,${compileResult.pdf_base64}`} 
+                      className="pdf-iframe"
+                      title="PDF Preview"
+                    />
+                  ) : (
+                    <div className="document-page" style={{ position: 'relative' }}>
+                      {compileResult?.errors ? (
+                        <div style={{ color: 'red', whiteSpace: 'pre-wrap', padding: '20px' }}>
+                          Compilation failed: {compileResult.errors}
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', color: '#999', paddingTop: '100px' }}>
+                          PDF not compiled yet. Wait or switch back to Code View.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* ── RIGHT PANE: ASSISTANT ── */}
+              <div className="assistant-sidebar">
+                <div className="assistant-messages">
+                  {aiMessages.map((msg, idx) => (
+                    msg.role === 'ai' ? (
+                      <div key={idx} style={{ marginBottom: '20px' }}>
+                        <div className="assistant-message-header">
+                          <div className="ai-avatar">Lx</div>
+                          <span>Lexis AI</span>
+                        </div>
+                        <div className="assistant-bubble">
+                          {msg.content}
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={idx} style={{ marginBottom: '20px', textAlign: 'right' }}>
+                        <div className="assistant-bubble" style={{ backgroundColor: '#e0e0e0', display: 'inline-block', textAlign: 'left' }}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                  
+                  {aiLoading && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <div className="assistant-message-header">
+                        <div className="ai-avatar">Lx</div>
+                        <span>Lexis AI</span>
+                      </div>
+                      <div className="assistant-bubble">
+                        Thinking and analyzing your code...
+                      </div>
+                    </div>
+                  )}
 
-            {/* Code Area */}
-            <div className="editor-code-area">
-              <textarea
-                className="editor-textarea"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Écrivez votre code LaTeX ici..."
-                spellCheck={false}
-                id="latex-code-editor"
-              />
+                  <div className="context-sources-section">
+                    <div className="context-header">CONTEXT SOURCES</div>
+                    <div className="source-chip">
+                      <FileText size={12} />
+                      <span>{currentDoc?.titre || 'main.tex'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="assistant-input-area">
+                  <div className="assistant-input-box">
+                    <input 
+                      type="text" 
+                      placeholder="Ask me to modify the code..." 
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAiSuggest()}
+                      disabled={aiLoading}
+                    />
+                    <Send 
+                      size={16} 
+                      color="#999" 
+                      style={{ cursor: aiLoading || !aiPrompt.trim() ? 'default' : 'pointer' }} 
+                      onClick={handleAiSuggest}
+                    />
+                  </div>
+                  <div className="assistant-footer">
+                    <span>Enter to send</span>
+                    <Paperclip size={14} color="#999" style={{ cursor: 'pointer' }} />
+                  </div>
+                </div>
+              </div>
             </div>
           </>
         )}
       </div>
     </div>
   );
-}
+};
+
+export default EditorPage;
