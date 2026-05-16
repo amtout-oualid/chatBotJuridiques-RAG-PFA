@@ -26,6 +26,7 @@ const EditorPage = () => {
   // Documents & State A
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   // Editor & State B
   const [currentDoc, setCurrentDoc] = useState(null);
@@ -47,6 +48,9 @@ const EditorPage = () => {
     }
   ]);
   
+  // Uploaded Files for State B
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+
   // Ref for auto-save
   const autoSaveTimer = useRef(null);
 
@@ -78,6 +82,14 @@ const EditorPage = () => {
         setCurrentDoc(res.data);
         setCode(res.data.latex_contenu || '');
         setCompileResult(null);
+        
+        // Load user's uploaded files to show in the sidebar
+        try {
+          const filesRes = await fileService.listFiles();
+          setUploadedFiles(filesRes.data.files || []);
+        } catch {
+          // ignore
+        }
       } catch {
         navigate('/editor');
       }
@@ -128,6 +140,31 @@ const EditorPage = () => {
     }
   };
 
+  const handleRename = async (e, id, currentTitle) => {
+    e.stopPropagation();
+    setActiveMenuId(null);
+    const newTitle = prompt('New project name:', currentTitle || 'Untitled');
+    if (newTitle && newTitle.trim() !== '') {
+      try {
+        await editorService.updateDocument(id, { titre: newTitle.trim() });
+        setDocuments(prev => prev.map(d => d.id === id ? { ...d, titre: newTitle.trim() } : d));
+        if (currentDoc?.id === id) {
+          setCurrentDoc(prev => ({ ...prev, titre: newTitle.trim() }));
+        }
+      } catch {
+        alert('Failed to rename project.');
+      }
+    }
+  };
+
+  // Mock toggle pin since the backend doesn't support it for documents directly
+  const [pinnedDocs, setPinnedDocs] = useState({});
+  const handleTogglePin = (e, id) => {
+    e.stopPropagation();
+    setActiveMenuId(null);
+    setPinnedDocs(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const handleSave = async () => {
     if (!documentId) return;
     setSaving(true);
@@ -148,7 +185,10 @@ const EditorPage = () => {
       setCompileResult(res.data);
     } catch (err) {
       console.error(err);
-      setCompileResult({ success: false, errors: 'Network error or compilation failed' });
+      setCompileResult({ 
+        success: false, 
+        errors: err.response?.data?.detail || err.message || 'Network error or compilation failed' 
+      });
     } finally {
       setCompiling(false);
     }
@@ -203,6 +243,9 @@ const EditorPage = () => {
     try {
       await fileService.uploadFile(file);
       alert('Asset uploaded successfully! You can reference it in your LaTeX code.');
+      // Refresh files list
+      const filesRes = await fileService.listFiles();
+      setUploadedFiles(filesRes.data.files || []);
     } catch (err) {
       alert('Failed to upload asset.');
     } finally {
@@ -235,17 +278,40 @@ const EditorPage = () => {
               ) : documents.length === 0 ? (
                 <div style={{ padding: '20px', color: '#999', fontSize: '13px' }}>No projects yet.</div>
               ) : (
-                documents.map(doc => (
-                  <div key={doc.id} className="ws-item project-item" onClick={() => navigate(`/editor/${doc.id}`)}>
+                documents
+                  .sort((a, b) => (pinnedDocs[b.id] ? 1 : 0) - (pinnedDocs[a.id] ? 1 : 0))
+                  .map(doc => (
+                  <div 
+                    key={doc.id} 
+                    className="ws-item project-item" 
+                    onClick={() => navigate(`/editor/${doc.id}`)}
+                    onMouseLeave={() => setActiveMenuId(null)}
+                  >
                     <FileText size={14} />
                     <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {doc.titre || 'Untitled'}
+                      {pinnedDocs[doc.id] && '📌 '}{doc.titre || 'Untitled'}
                     </span>
-                    <Trash2 
-                      size={14} 
-                      className="delete-icon"
-                      onClick={(e) => handleDelete(e, doc.id)}
-                    />
+                    
+                    <div className="project-actions" onClick={e => e.stopPropagation()}>
+                      <MoreHorizontal 
+                        size={16} 
+                        className="menu-icon"
+                        onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
+                      />
+                      {activeMenuId === doc.id && (
+                        <div className="project-dropdown">
+                          <div className="dropdown-item" onClick={(e) => handleRename(e, doc.id, doc.titre)}>
+                            Rename
+                          </div>
+                          <div className="dropdown-item" onClick={(e) => handleTogglePin(e, doc.id)}>
+                            {pinnedDocs[doc.id] ? 'Unpin' : 'Pin'}
+                          </div>
+                          <div className="dropdown-item delete" onClick={(e) => handleDelete(e, doc.id)}>
+                            Delete
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -288,14 +354,25 @@ const EditorPage = () => {
                 </div>
               </div>
               
-              <div className="ws-item">
-                <Folder size={14} />
-                <span>figures</span>
-              </div>
-              
-              <div className="ws-item upload-asset-btn" onClick={() => fileInputRef.current?.click()}>
-                <Upload size={14} />
-                <span>{uploadingAsset ? 'Uploading...' : 'Upload File/Image'}</span>
+              <div className="ws-folder">
+                <div className="ws-item">
+                  <Folder size={14} />
+                  <span>assets</span>
+                </div>
+                <div className="ws-subitems">
+                  {uploadedFiles.map(file => (
+                    <div key={file.id} className="ws-item">
+                      <FileText size={14} />
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
+                        {file.nom_fichier}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="ws-item upload-asset-btn" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={14} />
+                    <span>{uploadingAsset ? 'Uploading...' : 'Upload File/Image'}</span>
+                  </div>
+                </div>
               </div>
               
               <div className="ws-item" style={{ marginTop: '20px' }}>
