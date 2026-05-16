@@ -99,6 +99,16 @@ export default function App() {
         }
       />
 
+      {/* Protected — Database (newfront shell, no MainLayout) */}
+      <Route
+        path="/database"
+        element={
+          <ProtectedRoute>
+            <DatabasePage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Protected — MainLayout shell */}
       <Route
         element={
@@ -107,7 +117,6 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/database" element={<DatabasePage />} />
         <Route path="/editor" element={<EditorPage />} />
         <Route path="/editor/:documentId" element={<EditorPage />} />
         <Route path="/lawyers" element={<LawyersPage />} />

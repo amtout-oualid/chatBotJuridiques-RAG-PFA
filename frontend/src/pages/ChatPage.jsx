@@ -163,9 +163,11 @@ export default function ChatPage() {
       await fetchSessions(debouncedSearch);
       const sessionRes = await chatService.getSession(targetId);
       setCurrentSession(sessionRes.data.session);
-    } catch {
+    } catch (err) {
+      console.error('Send message failed:', err);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
       setInput(userContent);
+      alert('Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }

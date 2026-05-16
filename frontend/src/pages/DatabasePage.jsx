@@ -1,14 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Upload,
   Search,
+  Folder,
   FileText,
+  FileSpreadsheet,
+  File as FileIcon,
+  Upload,
+  LayoutGrid,
+  List as ListIcon,
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
   Trash2,
-  CheckCircle,
-  Clock,
-  Loader2,
-  X,
+  Edit2,
+  Loader2
 } from 'lucide-react';
+import Sidebar from '../components/Sidebar';
+import Topbar from '../components/Topbar';
 import { fileService } from '../services/fileService';
 import './DatabasePage.css';
 
@@ -17,7 +25,10 @@ export default function DatabasePage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('All');
+  
   const fileInputRef = useRef(null);
 
   const loadFiles = useCallback(async () => {
@@ -35,60 +46,55 @@ export default function DatabasePage() {
     loadFiles();
   }, [loadFiles]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenuId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
   const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const filesList = e.target.files;
+    if (!filesList || filesList.length === 0) return;
 
     setUploading(true);
     try {
-      await fileService.uploadFile(file);
+      const uploadPromises = Array.from(filesList).map(file => 
+        fileService.uploadFile(file)
+      );
+      await Promise.all(uploadPromises);
       await loadFiles();
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Failed to upload file(s). Please try again.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
     try {
       await fileService.deleteFile(id);
       setFiles((prev) => prev.filter((f) => f.id !== id));
-      if (searchResults) {
-        setSearchResults((prev) => ({
-          ...prev,
-          results: prev.results.filter((f) => f.id !== id),
-        }));
-      }
+      setActiveMenuId(null);
     } catch {
       /* ignore */
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults(null);
-      return;
-    }
-    try {
-      const res = await fileService.searchFiles(searchQuery);
-      setSearchResults(res.data);
-    } catch {
-      /* ignore */
-    }
+  const handleRename = (e, id) => {
+    e.stopPropagation();
+    // In a real app, open a modal or inline edit to rename
+    alert('Rename feature to be implemented');
+    setActiveMenuId(null);
   };
 
-  const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter') handleSearch();
+  const toggleMenu = (e, id) => {
+    e.stopPropagation();
+    setActiveMenuId(activeMenuId === id ? null : id);
   };
-
-  const clearSearch = () => {
-    setSearchQuery('');
-    setSearchResults(null);
-  };
-
-  const displayFiles = searchResults ? searchResults.results : files;
 
   const formatSize = (bytes) => {
     if (!bytes) return '—';
@@ -98,136 +104,227 @@ export default function DatabasePage() {
   };
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric',
     });
   };
 
+  const getFileIcon = (mimeType) => {
+    if (!mimeType) return <FileIcon size={20} className="card-icon" />;
+    if (mimeType.includes('pdf')) return <FileText size={20} className="card-icon" />;
+    if (mimeType.includes('sheet') || mimeType.includes('excel')) return <FileSpreadsheet size={20} className="card-icon" />;
+    return <FileIcon size={20} className="card-icon" />;
+  };
+
+  // Basic client-side filtering based on search query and active filter
+  const filteredFiles = files.filter(f => {
+    const matchesSearch = f.nom_fichier.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Simple mock logic for filtering by category (could be based on actual backend categorization or tags)
+    let matchesFilter = true;
+    if (activeFilter !== 'All') {
+      const lowerName = f.nom_fichier.toLowerCase();
+      if (activeFilter === 'Contracts') matchesFilter = lowerName.includes('contract') || lowerName.includes('agreement');
+      else if (activeFilter === 'Litigation') matchesFilter = lowerName.includes('case') || lowerName.includes('v.') || lowerName.includes('subpoena');
+      else if (activeFilter === 'M&A') matchesFilter = lowerName.includes('merger') || lowerName.includes('acquisition') || lowerName.includes('m&a');
+      else if (activeFilter === 'IP') matchesFilter = lowerName.includes('ip') || lowerName.includes('patent') || lowerName.includes('trademark');
+    }
+    
+    return matchesSearch && matchesFilter;
+  });
+
   return (
-    <div className="db-page">
-      {/* ── Header ── */}
-      <header className="db-header">
-        <div className="db-header__left">
-          <h1 className="db-header__title">Ma Base Documentaire</h1>
-          <span className="db-header__count">{files.length} fichiers</span>
-        </div>
-        <div className="db-header__actions">
-          <div className="db-search">
-            <Search size={16} className="db-search__icon" />
-            <input
-              type="text"
-              className="db-search__input"
-              placeholder="Rechercher des fichiers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              id="file-search-input"
-            />
-            {searchQuery && (
-              <button className="db-search__clear" onClick={clearSearch}>
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          <button
-            className="db-upload-btn"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            id="file-upload-btn"
-          >
-            {uploading ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-            {uploading ? 'Envoi...' : 'Télécharger'}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.txt"
-            onChange={handleUpload}
-            hidden
-          />
-        </div>
-      </header>
+    <div className="layout-container">
+      <Sidebar />
+      <div className="main-content">
+        <Topbar />
+        <div className="database-area">
+          <div className="database-header-center">
+            <h1>Database Explorer</h1>
+            
+            <div className="db-search-container">
+              <Search size={18} color="#999" />
+              <input 
+                type="text" 
+                placeholder="Search legal documents, case files, or precedents..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button className="db-search-btn">Search</button>
+            </div>
 
-      {/* ── Search results indicator ── */}
-      {searchResults && (
-        <div className="db-search-info">
-          Résultats pour « {searchResults.query} » — {searchResults.results.length} fichier(s)
-          <button onClick={clearSearch}>Effacer</button>
-        </div>
-      )}
+            <div className="quick-filters">
+              <span className="filter-label">QUICK FILTERS:</span>
+              <span 
+                className={`filter-chip ${activeFilter === 'All' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('All')}
+                style={{ backgroundColor: activeFilter === 'All' ? '#e0e0e0' : undefined }}
+              >All</span>
+              <span 
+                className={`filter-chip ${activeFilter === 'Contracts' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('Contracts')}
+                style={{ backgroundColor: activeFilter === 'Contracts' ? '#e0e0e0' : undefined }}
+              >Contracts</span>
+              <span 
+                className={`filter-chip ${activeFilter === 'Litigation' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('Litigation')}
+                style={{ backgroundColor: activeFilter === 'Litigation' ? '#e0e0e0' : undefined }}
+              >Litigation</span>
+              <span 
+                className={`filter-chip ${activeFilter === 'M&A' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('M&A')}
+                style={{ backgroundColor: activeFilter === 'M&A' ? '#e0e0e0' : undefined }}
+              >M&A</span>
+              <span 
+                className={`filter-chip ${activeFilter === 'IP' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('IP')}
+                style={{ backgroundColor: activeFilter === 'IP' ? '#e0e0e0' : undefined }}
+              >IP</span>
+            </div>
+          </div>
 
-      {/* ── File Grid ── */}
-      <div className="db-grid">
-        {loading ? (
-          <div className="db-empty">
-            <div className="spinner spinner--lg" />
-          </div>
-        ) : displayFiles.length === 0 ? (
-          <div className="db-empty">
-            <FileText size={40} opacity={0.3} />
-            <p>{searchResults ? 'Aucun résultat' : 'Aucun fichier téléchargé'}</p>
-            {!searchResults && (
-              <button
-                className="db-upload-btn"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={16} /> Télécharger votre premier document
-              </button>
-            )}
-          </div>
-        ) : (
-          <table className="db-table" id="files-table">
-            <thead>
-              <tr>
-                <th>Nom du fichier</th>
-                <th>Type</th>
-                <th>Taille</th>
-                <th>RAG</th>
-                <th>Date</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayFiles.map((file) => (
-                <tr key={file.id} className="db-row fade-in">
-                  <td>
-                    <div className="db-row__name">
-                      <FileText size={16} />
-                      <span>{file.nom_fichier}</span>
-                    </div>
-                  </td>
-                  <td className="db-row__meta">
-                    {file.type_mime?.split('/')[1]?.toUpperCase() || '—'}
-                  </td>
-                  <td className="db-row__meta">{formatSize(file.taille_octets)}</td>
-                  <td>
-                    {file.indexe_rag ? (
-                      <span className="db-badge db-badge--success">
-                        <CheckCircle size={12} /> Indexé
-                      </span>
+          <div className="db-content">
+            <div className="db-toolbar">
+              <div className="breadcrumbs">
+                <span>Root</span>
+                <span className="separator">›</span>
+                <span>My Documents</span>
+              </div>
+              <div className="view-toggles">
+                <button 
+                  className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                >
+                  <ListIcon size={16} />
+                </button>
+                <button 
+                  className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid size={16} />
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                <Loader2 size={32} className="spin" style={{ margin: '0 auto' }} />
+                <p style={{ marginTop: '16px' }}>Loading files...</p>
+              </div>
+            ) : (
+              <div className={viewMode === 'grid' ? 'db-grid' : 'db-list-view'}>
+                {viewMode === 'grid' && (
+                  <div 
+                    className="db-card upload-card" 
+                    onClick={() => !uploading && fileInputRef.current?.click()}
+                    style={{ cursor: uploading ? 'wait' : 'pointer' }}
+                  >
+                    {uploading ? (
+                      <Loader2 size={24} className="card-icon spin" />
                     ) : (
-                      <span className="db-badge db-badge--pending">
-                        <Clock size={12} /> En attente
-                      </span>
+                      <Upload size={24} className="card-icon" />
                     )}
-                  </td>
-                  <td className="db-row__meta">{formatDate(file.date_creation)}</td>
-                  <td>
-                    <button
-                      className="db-row__delete"
-                      onClick={() => handleDelete(file.id)}
-                      title="Supprimer"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                    <div className="card-title">{uploading ? 'Uploading...' : 'Upload File'}</div>
+                    <div className="card-meta">Drag and drop</div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleUpload}
+                      hidden
+                      multiple
+                    />
+                  </div>
+                )}
+                
+                {viewMode === 'list' && (
+                  <div 
+                    className="list-item" 
+                    style={{ borderStyle: 'dashed', backgroundColor: '#fafafa', justifyContent: 'center', gap: '10px' }}
+                    onClick={() => !uploading && fileInputRef.current?.click()}
+                  >
+                     {uploading ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
+                     <span style={{ fontWeight: 600 }}>{uploading ? 'Uploading...' : 'Upload File (Drag and drop)'}</span>
+                     <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleUpload}
+                      hidden
+                      multiple
+                    />
+                  </div>
+                )}
+
+                {filteredFiles.map((file) => (
+                  viewMode === 'grid' ? (
+                    <div className="db-card" key={file.id}>
+                      {getFileIcon(file.type_mime)}
+                      
+                      <div className="db-card-actions" onClick={(e) => toggleMenu(e, file.id)}>
+                        <MoreVertical size={16} />
+                      </div>
+                      
+                      {activeMenuId === file.id && (
+                        <div className="db-dropdown-menu">
+                          <button className="db-dropdown-item" onClick={(e) => handleRename(e, file.id)}>
+                            <Edit2 size={14} /> Rename
+                          </button>
+                          <button className="db-dropdown-item danger" onClick={(e) => handleDelete(e, file.id)}>
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="card-title" title={file.nom_fichier}>{file.nom_fichier}</div>
+                      <div className="card-meta-row">
+                        <span>{file.type_mime?.split('/')[1]?.toUpperCase() || 'FILE'} • {formatSize(file.taille_octets)}</span>
+                        <span>{formatDate(file.date_creation)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="list-item" key={file.id}>
+                      <div className="list-item-left">
+                         {getFileIcon(file.type_mime)}
+                         <span style={{ fontWeight: 600, fontSize: '13px' }}>{file.nom_fichier}</span>
+                      </div>
+                      <div className="list-item-right">
+                         <span>{file.type_mime?.split('/')[1]?.toUpperCase() || 'FILE'}</span>
+                         <span>{formatSize(file.taille_octets)}</span>
+                         <span>{formatDate(file.date_creation)}</span>
+                         <div style={{ position: 'relative' }}>
+                           <div className="db-card-actions" style={{ position: 'static' }} onClick={(e) => toggleMenu(e, file.id)}>
+                             <MoreVertical size={16} />
+                           </div>
+                           {activeMenuId === file.id && (
+                              <div className="db-dropdown-menu" style={{ right: 0, top: '24px' }}>
+                                <button className="db-dropdown-item" onClick={(e) => handleRename(e, file.id)}>
+                                  <Edit2 size={14} /> Rename
+                                </button>
+                                <button className="db-dropdown-item danger" onClick={(e) => handleDelete(e, file.id)}>
+                                  <Trash2 size={14} /> Delete
+                                </button>
+                              </div>
+                            )}
+                         </div>
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+            )}
+
+            {!loading && (
+              <div className="pagination">
+                <div className="page-info">Showing {filteredFiles.length} items in Database</div>
+                <div className="page-controls">
+                  <button><ChevronLeft size={16} /></button>
+                  <span>Page 1 of 1</span>
+                  <button><ChevronRight size={16} /></button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
