@@ -6,8 +6,8 @@ export const editorService = {
   listTemplates: () => api.get(ENDPOINTS.TEMPLATES),
 
   /** POST /editor/compile — compile LaTeX */
-  compileLaTeX: (latexCode) =>
-    api.post(ENDPOINTS.COMPILE, { latex_code: latexCode }),
+  compileLaTeX: (latexCode, documentId = null) =>
+    api.post(ENDPOINTS.COMPILE, { latex_code: latexCode, document_id: documentId }),
 
   /** GET /editor/docs — list user documents */
   listDocuments: () => api.get(ENDPOINTS.DOCS),
@@ -25,6 +25,26 @@ export const editorService = {
   deleteDocument: (id) => api.delete(ENDPOINTS.DOC_BY_ID(id)),
 
   /** POST /editor/ai-suggest — get AI suggestions */
-  aiSuggest: (latexCode, prompt) =>
-    api.post(ENDPOINTS.AI_SUGGEST, { latex_code: latexCode, prompt }),
+  aiSuggest: (latexCode, prompt, documentId = null) =>
+    api.post(ENDPOINTS.AI_SUGGEST, { latex_code: latexCode, prompt, document_id: documentId }),
+
+  /** GET /editor/docs/{id}/files — list project files */
+  listProjectFiles: (docId) => api.get(ENDPOINTS.DOC_FILES(docId)),
+
+  /** POST /editor/docs/{id}/files — upload project file */
+  uploadProjectFile: (docId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(ENDPOINTS.DOC_FILES(docId), formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  /** PUT /editor/docs/{id}/files/{fileId}/rename — rename project file */
+  renameProjectFile: (docId, fileId, newName) => 
+    api.put(ENDPOINTS.DOC_FILE_RENAME(docId, fileId), { nouveau_nom: newName }),
+
+  /** DELETE /editor/docs/{id}/files/{fileId} — delete project file */
+  deleteProjectFile: (docId, fileId) =>
+    api.delete(ENDPOINTS.DOC_FILE_BY_ID(docId, fileId)),
 };

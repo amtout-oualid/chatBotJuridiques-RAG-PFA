@@ -27,6 +27,7 @@ const EditorPage = () => {
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [activeMenuId, setActiveMenuId] = useState(null);
+  const [activeFileMenuId, setActiveFileMenuId] = useState(null);
 
   // Editor & State B
   const [currentDoc, setCurrentDoc] = useState(null);
@@ -85,7 +86,7 @@ const EditorPage = () => {
         
         // Load user's uploaded files to show in the sidebar
         try {
-          const filesRes = await fileService.listFiles();
+          const filesRes = await editorService.listProjectFiles(documentId);
           setUploadedFiles(filesRes.data.files || []);
         } catch {
           // ignore
@@ -181,13 +182,34 @@ const EditorPage = () => {
     if (!code) return;
     setCompiling(true);
     try {
-      const res = await editorService.compileLaTeX(code);
+      const res = await editorService.compileLaTeX(code, documentId);
       setCompileResult(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("Compile Error:", err);
+      let errorMsg = 'Unknown error occurred during compilation';
+      
+      if (err.response) {
+        // Server responded with an error status (5xx, 4xx)
+        if (err.response.data?.detail) {
+          if (typeof err.response.data.detail === 'string') {
+            errorMsg = err.response.data.detail;
+          } else if (Array.isArray(err.response.data.detail)) {
+            errorMsg = err.response.data.detail.map(e => e.msg).join(', ');
+          }
+        } else {
+          errorMsg = `Server error: ${err.response.status}`;
+        }
+      } else if (err.request) {
+        // Request made but no response received (CORS, timeout, network down)
+        errorMsg = 'Network Error: No response received from the server. It might be down or blocked by CORS.';
+      } else {
+        // Something happened setting up the request
+        errorMsg = err.message;
+      }
+      
       setCompileResult({ 
         success: false, 
-        errors: err.response?.data?.detail || err.message || 'Network error or compilation failed' 
+        errors: errorMsg 
       });
     } finally {
       setCompiling(false);
@@ -223,7 +245,7 @@ const EditorPage = () => {
     setAiPrompt('');
     setAiLoading(true);
     try {
-      const res = await editorService.aiSuggest(code, userMessage.content);
+      const res = await editorService.aiSuggest(code, userMessage.content, documentId);
       setCode(res.data.suggested_code);
       setAiMessages(prev => [...prev, { role: 'ai', content: 'I have updated the code with my suggestions. Please review the changes.' }]);
     } catch {
@@ -238,19 +260,46 @@ const EditorPage = () => {
   const [uploadingAsset, setUploadingAsset] = useState(false);
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !documentId) return;
     setUploadingAsset(true);
     try {
-      await fileService.uploadFile(file);
+      await editorService.uploadProjectFile(documentId, file);
       alert('Asset uploaded successfully! You can reference it in your LaTeX code.');
       // Refresh files list
-      const filesRes = await fileService.listFiles();
+      const filesRes = await editorService.listProjectFiles(documentId);
       setUploadedFiles(filesRes.data.files || []);
     } catch (err) {
       alert('Failed to upload asset.');
     } finally {
       setUploadingAsset(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileRename = async (e, fileId, currentName) => {
+    e.stopPropagation();
+    setActiveFileMenuId(null);
+    const newName = prompt('New file name:', currentName);
+    if (newName && newName.trim() !== '') {
+      try {
+        await editorService.renameProjectFile(documentId, fileId, newName.trim());
+        setUploadedFiles(prev => prev.map(f => f.id === fileId ? { ...f, nom_fichier: newName.trim() } : f));
+      } catch {
+        alert('Failed to rename file.');
+      }
+    }
+  };
+
+  const handleFileDelete = async (e, fileId) => {
+    e.stopPropagation();
+    setActiveFileMenuId(null);
+    if (window.confirm('Are you sure you want to delete this file?')) {
+      try {
+        await editorService.deleteProjectFile(documentId, fileId);
+        setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+      } catch {
+        alert('Failed to delete file.');
+      }
     }
   };
 
@@ -342,15 +391,6 @@ const EditorPage = () => {
                     <FileCode size={14} />
                     <span>main.tex</span>
                   </div>
-                  {/* Mock files for UX parity with design */}
-                  <div className="ws-item">
-                    <FileCode size={14} />
-                    <span>abstract.tex</span>
-                  </div>
-                  <div className="ws-item">
-                    <FileCode size={14} />
-                    <span>methods.tex</span>
-                  </div>
                 </div>
               </div>
               
@@ -361,11 +401,28 @@ const EditorPage = () => {
                 </div>
                 <div className="ws-subitems">
                   {uploadedFiles.map(file => (
-                    <div key={file.id} className="ws-item">
+                    <div key={file.id} className="ws-item project-item" onMouseLeave={() => setActiveFileMenuId(null)}>
                       <FileText size={14} />
-                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
+                      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {file.nom_fichier}
                       </span>
+                      <div className="project-actions" onClick={e => e.stopPropagation()}>
+                        <MoreHorizontal 
+                          size={16} 
+                          className="menu-icon"
+                          onClick={() => setActiveFileMenuId(activeFileMenuId === file.id ? null : file.id)}
+                        />
+                        {activeFileMenuId === file.id && (
+                          <div className="project-dropdown" style={{ right: '-5px' }}>
+                            <div className="dropdown-item" onClick={(e) => handleFileRename(e, file.id, file.nom_fichier)}>
+                              Rename
+                            </div>
+                            <div className="dropdown-item delete" onClick={(e) => handleFileDelete(e, file.id)}>
+                              Delete
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <div className="ws-item upload-asset-btn" onClick={() => fileInputRef.current?.click()}>
@@ -373,15 +430,6 @@ const EditorPage = () => {
                     <span>{uploadingAsset ? 'Uploading...' : 'Upload File/Image'}</span>
                   </div>
                 </div>
-              </div>
-              
-              <div className="ws-item" style={{ marginTop: '20px' }}>
-                <Settings size={14} />
-                <span>preamble.sty</span>
-              </div>
-              <div className="ws-item">
-                <FileText size={14} />
-                <span>references.bib</span>
               </div>
             </div>
           </div>

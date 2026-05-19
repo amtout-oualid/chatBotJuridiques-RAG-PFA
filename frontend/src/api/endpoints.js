@@ -26,6 +26,9 @@ export const ENDPOINTS = {
   DOCS:            '/editor/docs',
   DOC_BY_ID:       (id) => `/editor/docs/${id}`,
   AI_SUGGEST:      '/editor/ai-suggest',
+  DOC_FILES:       (id) => `/editor/docs/${id}/files`,
+  DOC_FILE_BY_ID:  (docId, fileId) => `/editor/docs/${docId}/files/${fileId}`,
+  DOC_FILE_RENAME: (docId, fileId) => `/editor/docs/${docId}/files/${fileId}/rename`,
 
   // 5. Lawyers
   LAWYERS:         '/lawyers',

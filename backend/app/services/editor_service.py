@@ -6,17 +6,21 @@ Also handles LaTeX compilation and AI suggestions.
 """
 
 import asyncio
+import base64
 import os
+import shutil
 import tempfile
 import uuid
+import aiofiles
 from typing import List, Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai import call_legal_ai
-from app.models import DocumentGenere, ModeleJuridique
+from app.models import DocumentGenere, ModeleJuridique, FichierUtilisateur
 
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
 # ─────────────────────────────────────────────────────────
 # TEMPLATES
@@ -169,63 +173,189 @@ async def delete_document(
     await db.commit()
     return True
 
+# ─────────────────────────────────────────────────────────
+# PROJECT FILES
+# ─────────────────────────────────────────────────────────
+
+async def get_project_files(db: AsyncSession, document_id: uuid.UUID, clerk_id: str) -> List[FichierUtilisateur]:
+    result = await db.execute(
+        select(FichierUtilisateur).where(
+            FichierUtilisateur.document_id == document_id,
+            FichierUtilisateur.utilisateur_id == clerk_id
+        ).order_by(FichierUtilisateur.date_creation.asc())
+    )
+    return list(result.scalars().all())
+
+async def upload_project_file(
+    db: AsyncSession,
+    document_id: uuid.UUID,
+    clerk_id: str,
+    filename: str,
+    content: bytes,
+    content_type: Optional[str],
+) -> FichierUtilisateur:
+    user_dir = os.path.join(UPLOAD_DIR, clerk_id)
+    os.makedirs(user_dir, exist_ok=True)
+    unique_name = f"{uuid.uuid4().hex}_{filename}"
+    file_path = os.path.join(user_dir, unique_name)
+    async with aiofiles.open(file_path, "wb") as f:
+        await f.write(content)
+    
+    file_record = FichierUtilisateur(
+        utilisateur_id=clerk_id,
+        document_id=document_id,
+        nom_fichier=filename,
+        url_stockage=file_path,
+        type_mime=content_type,
+        taille_octets=len(content),
+        indexe_rag=False,
+    )
+    db.add(file_record)
+    await db.commit()
+    await db.refresh(file_record)
+    return file_record
+
+async def rename_project_file(
+    db: AsyncSession, document_id: uuid.UUID, clerk_id: str, file_id: uuid.UUID, new_name: str
+) -> Optional[FichierUtilisateur]:
+    result = await db.execute(
+        select(FichierUtilisateur).where(
+            FichierUtilisateur.id == file_id,
+            FichierUtilisateur.document_id == document_id,
+            FichierUtilisateur.utilisateur_id == clerk_id,
+        )
+    )
+    file_record = result.scalars().first()
+    if not file_record:
+        return None
+    file_record.nom_fichier = new_name
+    await db.commit()
+    await db.refresh(file_record)
+    return file_record
+
+async def delete_project_file(
+    db: AsyncSession, document_id: uuid.UUID, clerk_id: str, file_id: uuid.UUID
+) -> bool:
+    result = await db.execute(
+        select(FichierUtilisateur).where(
+            FichierUtilisateur.id == file_id,
+            FichierUtilisateur.document_id == document_id,
+            FichierUtilisateur.utilisateur_id == clerk_id,
+        )
+    )
+    file_record = result.scalars().first()
+    if not file_record:
+        return False
+    if os.path.exists(file_record.url_stockage):
+        os.remove(file_record.url_stockage)
+    await db.delete(file_record)
+    await db.commit()
+    return True
 
 # ─────────────────────────────────────────────────────────
 # LATEX COMPILATION
 # ─────────────────────────────────────────────────────────
 
-async def compile_latex(latex_code: str) -> dict:
+async def compile_latex(latex_code: str, project_files: List[FichierUtilisateur] = None) -> dict:
     """
     Compile LaTeX code to PDF using pdflatex.
 
-    Returns {"success": bool, "pdf_url": str | None, "errors": str | None}.
-    Falls back to a stub if pdflatex is not installed.
+    Returns {"success": bool, "pdf_url": str | None, "pdf_base64": str | None, "errors": str | None, "log_output": str | None}.
     """
     try:
-        # Create a temporary directory for compilation
         with tempfile.TemporaryDirectory() as tmp_dir:
+            # Copy project files into temporary directory
+            if project_files:
+                for pf in project_files:
+                    if os.path.exists(pf.url_stockage):
+                        dest_path = os.path.join(tmp_dir, pf.nom_fichier)
+                        shutil.copy2(pf.url_stockage, dest_path)
+                        
             tex_path = os.path.join(tmp_dir, "document.tex")
             pdf_path = os.path.join(tmp_dir, "document.pdf")
+            log_path = os.path.join(tmp_dir, "document.log")
 
             # Write LaTeX source
             with open(tex_path, "w", encoding="utf-8") as f:
                 f.write(latex_code)
 
+            # Debug: Print the system PATH to the FastAPI terminal
+            print(f"--- DEBUG: System PATH ---\n{os.environ.get('PATH')}\n--------------------------")
+
+            # Allow for an absolute path to pdflatex if it's not in the PATH.
+            # You can change this to your actual pdflatex.exe path (e.g., r"C:\Program Files\MiKTeX\miktex\bin\x64\pdflatex.exe")
+            pdflatex_bin = shutil.which("pdflatex") or os.environ.get("PDFLATEX_PATH", r"C:\Users\pc\AppData\Local\Programs\MiKTeX\miktex\bin\x64\pdflatex.exe")
+
             # Run pdflatex (non-interactive, halt on error)
             proc = await asyncio.create_subprocess_exec(
-                "pdflatex",
+                pdflatex_bin,
                 "-interaction=nonstopmode",
                 "-output-directory", tmp_dir,
                 tex_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
-
-            if proc.returncode == 0 and os.path.exists(pdf_path):
-                # In production, upload PDF to cloud storage and return URL
-                return {
-                    "success": True,
-                    "pdf_url": f"/compiled/{os.path.basename(pdf_path)}",
-                    "errors": None,
-                }
-            else:
+            
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=20)
+            except asyncio.TimeoutError:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
                 return {
                     "success": False,
                     "pdf_url": None,
-                    "errors": stdout.decode("utf-8", errors="replace"),
+                    "pdf_base64": None,
+                    "errors": "LaTeX compilation timed out after 20 seconds. The process was terminated.",
+                    "log_output": None,
+                }
+            
+            log_output = ""
+            clean_errors = ""
+            if os.path.exists(log_path):
+                with open(log_path, "r", encoding="utf-8", errors="replace") as lf:
+                    log_output = lf.read()
+                    error_lines = [line.strip() for line in log_output.splitlines() if line.startswith("!")]
+                    if error_lines:
+                        clean_errors = "\n".join(error_lines)
+
+            if proc.returncode == 0 and os.path.exists(pdf_path):
+                with open(pdf_path, "rb") as pdf_file:
+                    pdf_base64 = base64.b64encode(pdf_file.read()).decode("utf-8")
+                return {
+                    "success": True,
+                    "pdf_url": None,
+                    "pdf_base64": pdf_base64,
+                    "errors": None,
+                    "log_output": log_output,
+                }
+            else:
+                error_msg = clean_errors if clean_errors else stdout.decode("utf-8", errors="replace")
+                return {
+                    "success": False,
+                    "pdf_url": None,
+                    "pdf_base64": None,
+                    "errors": error_msg,
+                    "log_output": log_output,
                 }
     except FileNotFoundError:
         return {
             "success": False,
             "pdf_url": None,
+            "pdf_base64": None,
             "errors": "pdflatex is not installed on the server. Install TeX Live or MiKTeX.",
+            "log_output": None,
         }
-    except asyncio.TimeoutError:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {
             "success": False,
             "pdf_url": None,
-            "errors": "LaTeX compilation timed out after 30 seconds.",
+            "pdf_base64": None,
+            "errors": f"Unexpected backend error during compilation: {repr(e)}",
+            "log_output": None,
         }
 
 
@@ -233,14 +363,29 @@ async def compile_latex(latex_code: str) -> dict:
 # AI SUGGESTIONS
 # ─────────────────────────────────────────────────────────
 
-async def ai_suggest(latex_code: str, prompt: str) -> str:
+async def ai_suggest(latex_code: str, prompt: str, project_files: List[FichierUtilisateur] = None) -> str:
     """
-    Send LaTeX code + user prompt to the AI and return the suggested code.
+    Send LaTeX code + user prompt + project files to the AI and return the suggested code.
+    """
+    files_context = ""
+    if project_files:
+        for pf in project_files:
+            ext = os.path.splitext(pf.nom_fichier)[1].lower()
+            if ext in {".txt", ".md", ".tex", ".csv", ".json", ".html", ".xml"}:
+                try:
+                    with open(pf.url_stockage, "r", encoding="utf-8", errors="replace") as f:
+                        content = f.read(15000)
+                        files_context += f"--- Fichier du projet: {pf.nom_fichier} ---\n{content}\n"
+                except Exception:
+                    pass
 
-    Maps to POST /editor/ai-suggest.
-    """
     combined_prompt = (
         f"Voici le code LaTeX actuel :\n```latex\n{latex_code}\n```\n\n"
+    )
+    if files_context:
+        combined_prompt += f"Fichiers supplémentaires du projet:\n{files_context}\n\n"
+    
+    combined_prompt += (
         f"L'utilisateur demande : {prompt}\n\n"
         f"Retourne uniquement le code LaTeX modifié, sans explication supplémentaire."
     )

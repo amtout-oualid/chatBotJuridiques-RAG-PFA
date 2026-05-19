@@ -11,7 +11,7 @@ Routes:
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -27,6 +27,9 @@ from app.schemas import (
     DocumentUpdate,
     MessageOut,
     TemplateListResponse,
+    FileListResponse,
+    FileResponse,
+    ProjectFileRename,
 )
 from app.services import editor_service
 
@@ -55,9 +58,13 @@ async def list_templates(
 )
 async def compile_latex(
     data: CompileRequest,
-    _clerk_id: str = Depends(get_current_user),
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> CompileResponse:
-    result = await editor_service.compile_latex(data.latex_code)
+    project_files = None
+    if data.document_id:
+        project_files = await editor_service.get_project_files(db, data.document_id, clerk_id)
+    result = await editor_service.compile_latex(data.latex_code, project_files=project_files)
     return CompileResponse(**result)
 
 
@@ -153,9 +160,13 @@ async def update_document(
 )
 async def ai_suggest(
     data: AISuggestRequest,
-    _clerk_id: str = Depends(get_current_user),
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> AISuggestResponse:
-    suggested = await editor_service.ai_suggest(data.latex_code, data.prompt)
+    project_files = None
+    if data.document_id:
+        project_files = await editor_service.get_project_files(db, data.document_id, clerk_id)
+    suggested = await editor_service.ai_suggest(data.latex_code, data.prompt, project_files=project_files)
     return AISuggestResponse(suggested_code=suggested)
 
 
@@ -177,3 +188,70 @@ async def delete_document(
             detail="Document not found.",
         )
     return MessageOut(message="Document deleted successfully.")
+
+# ─────────────────────────────────────────────────────────
+# PROJECT ASSETS (FILES)
+# ─────────────────────────────────────────────────────────
+
+@router.get(
+    "/docs/{document_id}/files",
+    response_model=FileListResponse,
+    summary="List project files",
+)
+async def list_project_files(
+    document_id: uuid.UUID,
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> FileListResponse:
+    files = await editor_service.get_project_files(db, document_id, clerk_id)
+    return FileListResponse(files=files)
+
+@router.post(
+    "/docs/{document_id}/files",
+    response_model=FileResponse,
+    summary="Upload project file",
+)
+async def upload_project_file(
+    document_id: uuid.UUID,
+    file: UploadFile = File(...),
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    content = await file.read()
+    uploaded = await editor_service.upload_project_file(
+        db, document_id, clerk_id, file.filename, content, file.content_type
+    )
+    return uploaded
+
+@router.put(
+    "/docs/{document_id}/files/{file_id}/rename",
+    response_model=FileResponse,
+    summary="Rename project file",
+)
+async def rename_project_file(
+    document_id: uuid.UUID,
+    file_id: uuid.UUID,
+    data: ProjectFileRename,
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    renamed = await editor_service.rename_project_file(db, document_id, clerk_id, file_id, data.nouveau_nom)
+    if not renamed:
+        raise HTTPException(status_code=404, detail="File not found")
+    return renamed
+
+@router.delete(
+    "/docs/{document_id}/files/{file_id}",
+    response_model=MessageOut,
+    summary="Delete project file",
+)
+async def delete_project_file(
+    document_id: uuid.UUID,
+    file_id: uuid.UUID,
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageOut:
+    deleted = await editor_service.delete_project_file(db, document_id, clerk_id, file_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="File not found")
+    return MessageOut(message="File deleted successfully")

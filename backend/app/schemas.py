@@ -195,24 +195,31 @@ class DocumentDetailResponse(BaseModel):
 class CompileRequest(BaseModel):
     """POST /editor/compile — LaTeX source to compile."""
     latex_code: str
+    document_id: Optional[uuid.UUID] = None
 
 
 class CompileResponse(BaseModel):
     """Compilation result."""
     success: bool
     pdf_url: Optional[str] = None
+    pdf_base64: Optional[str] = None
     errors: Optional[str] = None
+    log_output: Optional[str] = None
 
 
 class AISuggestRequest(BaseModel):
     """POST /editor/ai-suggest — code + user prompt."""
     latex_code: str
     prompt: str
+    document_id: Optional[uuid.UUID] = None
 
 
 class AISuggestResponse(BaseModel):
     """AI suggestion result."""
     suggested_code: str
+
+class ProjectFileRename(BaseModel):
+    nouveau_nom: str
 
 
 # ═════════════════════════════════════════════════════════

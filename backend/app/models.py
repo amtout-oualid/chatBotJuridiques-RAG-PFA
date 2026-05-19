@@ -282,6 +282,7 @@ class DocumentGenere(Base):
     # ── relationships ────────────────────────────────────
     utilisateur = relationship("Utilisateur", back_populates="documents_generes")
     modele = relationship("ModeleJuridique", back_populates="documents")
+    fichiers = relationship("FichierUtilisateur", back_populates="document", cascade="all, delete-orphan")
 
 
 # ─────────────────────────────────────────────────────────
@@ -300,6 +301,11 @@ class FichierUtilisateur(Base):
         ForeignKey("utilisateurs.id", ondelete="CASCADE"),
         nullable=False,
     )
+    document_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("documents_generes.id", ondelete="CASCADE"),
+        nullable=True,
+    )
     nom_fichier = Column(String(255), nullable=False)
     url_stockage = Column(Text, nullable=False)
     type_mime = Column(String(100))
@@ -313,6 +319,7 @@ class FichierUtilisateur(Base):
 
     # ── relationships ────────────────────────────────────
     utilisateur = relationship("Utilisateur", back_populates="fichiers")
+    document = relationship("DocumentGenere", back_populates="fichiers")
 
 
 # ─────────────────────────────────────────────────────────
