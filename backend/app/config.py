@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # ── Google Gemini AI ─────────────────────────────────
     GOOGLE_API_KEY: str = ""
 
+    # ── LaTeXLite ────────────────────────────────────────
+    LATEXLITE_API_KEY: str = ""
+
     # ── CORS ─────────────────────────────────────────────
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
 

@@ -12,11 +12,13 @@ import shutil
 import tempfile
 import uuid
 import aiofiles
+import httpx
 from typing import List, Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.ai import call_legal_ai
 from app.models import DocumentGenere, ModeleJuridique, FichierUtilisateur
 
@@ -258,93 +260,72 @@ async def delete_project_file(
 
 async def compile_latex(latex_code: str, project_files: List[FichierUtilisateur] = None) -> dict:
     """
-    Compile LaTeX code to PDF using pdflatex.
+    Compile LaTeX code to PDF using LaTeXLite API.
 
     Returns {"success": bool, "pdf_url": str | None, "pdf_base64": str | None, "errors": str | None, "log_output": str | None}.
     """
-    try:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            # Copy project files into temporary directory
-            if project_files:
-                for pf in project_files:
-                    if os.path.exists(pf.url_stockage):
-                        dest_path = os.path.join(tmp_dir, pf.nom_fichier)
-                        shutil.copy2(pf.url_stockage, dest_path)
-                        
-            tex_path = os.path.join(tmp_dir, "document.tex")
-            pdf_path = os.path.join(tmp_dir, "document.pdf")
-            log_path = os.path.join(tmp_dir, "document.log")
+    settings = get_settings()
+    api_key = settings.LATEXLITE_API_KEY or os.environ.get("LATEXLITE_API_KEY")
 
-            # Write LaTeX source
-            with open(tex_path, "w", encoding="utf-8") as f:
-                f.write(latex_code)
-
-            # Debug: Print the system PATH to the FastAPI terminal
-            print(f"--- DEBUG: System PATH ---\n{os.environ.get('PATH')}\n--------------------------")
-
-            # Allow for an absolute path to pdflatex if it's not in the PATH.
-            # You can change this to your actual pdflatex.exe path (e.g., r"C:\Program Files\MiKTeX\miktex\bin\x64\pdflatex.exe")
-            pdflatex_bin = shutil.which("pdflatex") or os.environ.get("PDFLATEX_PATH", r"C:\Users\pc\AppData\Local\Programs\MiKTeX\miktex\bin\x64\pdflatex.exe")
-
-            # Run pdflatex (non-interactive, halt on error)
-            proc = await asyncio.create_subprocess_exec(
-                pdflatex_bin,
-                "-interaction=nonstopmode",
-                "-output-directory", tmp_dir,
-                tex_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            
-            try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=20)
-            except asyncio.TimeoutError:
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
-                return {
-                    "success": False,
-                    "pdf_url": None,
-                    "pdf_base64": None,
-                    "errors": "LaTeX compilation timed out after 20 seconds. The process was terminated.",
-                    "log_output": None,
-                }
-            
-            log_output = ""
-            clean_errors = ""
-            if os.path.exists(log_path):
-                with open(log_path, "r", encoding="utf-8", errors="replace") as lf:
-                    log_output = lf.read()
-                    error_lines = [line.strip() for line in log_output.splitlines() if line.startswith("!")]
-                    if error_lines:
-                        clean_errors = "\n".join(error_lines)
-
-            if proc.returncode == 0 and os.path.exists(pdf_path):
-                with open(pdf_path, "rb") as pdf_file:
-                    pdf_base64 = base64.b64encode(pdf_file.read()).decode("utf-8")
-                return {
-                    "success": True,
-                    "pdf_url": None,
-                    "pdf_base64": pdf_base64,
-                    "errors": None,
-                    "log_output": log_output,
-                }
-            else:
-                error_msg = clean_errors if clean_errors else stdout.decode("utf-8", errors="replace")
-                return {
-                    "success": False,
-                    "pdf_url": None,
-                    "pdf_base64": None,
-                    "errors": error_msg,
-                    "log_output": log_output,
-                }
-    except FileNotFoundError:
+    if not api_key:
         return {
             "success": False,
             "pdf_url": None,
             "pdf_base64": None,
-            "errors": "pdflatex is not installed on the server. Install TeX Live or MiKTeX.",
+            "errors": "LaTeXLite API key is missing. Compilation cannot proceed.",
+            "log_output": None,
+        }
+
+    try:
+        files = [
+            ("template", ("main.tex", latex_code, "text/plain"))
+        ]
+        
+        if project_files:
+            for pf in project_files:
+                if os.path.exists(pf.url_stockage):
+                    with open(pf.url_stockage, "rb") as f:
+                        content = f.read()
+                        mime = pf.type_mime or "application/octet-stream"
+                        files.append((pf.nom_fichier, (pf.nom_fichier, content, mime)))
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://latexlite.com/v1/renders-sync",
+                headers={"Authorization": f"Bearer {api_key}"},
+                files=files
+            )
+
+        if resp.status_code == 200:
+            pdf_base64 = base64.b64encode(resp.content).decode("utf-8")
+            return {
+                "success": True,
+                "pdf_url": None,
+                "pdf_base64": pdf_base64,
+                "errors": None,
+                "log_output": None,
+            }
+        else:
+            try:
+                error_data = resp.json()
+                error_msg = error_data.get("error", {}).get("message", resp.text)
+            except Exception:
+                error_msg = resp.text
+
+            return {
+                "success": False,
+                "pdf_url": None,
+                "pdf_base64": None,
+                "errors": f"LaTeXLite API Error: {error_msg}",
+                "log_output": None,
+            }
+
+    except httpx.TimeoutException:
+        return {
+            "success": False,
+            "pdf_url": None,
+            "pdf_base64": None,
+            "errors": "LaTeX compilation timed out after 30 seconds (LaTeXLite).",
             "log_output": None,
         }
     except Exception as e:
