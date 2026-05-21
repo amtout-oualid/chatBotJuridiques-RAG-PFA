@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -33,11 +33,13 @@ const EditorPage = () => {
   const [currentDoc, setCurrentDoc] = useState(null);
   const [code, setCode] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   
   // View mode
   const [viewMode, setViewMode] = useState('code'); // 'code' | 'visual'
   const [compileResult, setCompileResult] = useState(null);
   const [compiling, setCompiling] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
   // AI Assistant
   const [aiPrompt, setAiPrompt] = useState('');
@@ -70,11 +72,19 @@ const EditorPage = () => {
     loadDocuments();
   }, [loadDocuments]);
 
+  // Revoke blob URL on unmount or document switch to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      setPdfBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    };
+  }, [documentId]);
+
   useEffect(() => {
     if (!documentId) {
       setCurrentDoc(null);
       setCode('');
       setCompileResult(null);
+      setPdfBlobUrl(null);
       return;
     }
     (async () => {
@@ -96,25 +106,6 @@ const EditorPage = () => {
       }
     })();
   }, [documentId, navigate]);
-
-  // Auto-save (debounced)
-  useEffect(() => {
-    if (!documentId || !currentDoc) return;
-
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(async () => {
-      try {
-        setSaving(true);
-        await editorService.updateDocument(documentId, { latex_contenu: code });
-      } catch {
-        // ignore
-      } finally {
-        setSaving(false);
-      }
-    }, 2000);
-
-    return () => clearTimeout(autoSaveTimer.current);
-  }, [code, documentId, currentDoc]);
 
   const handleCreate = async () => {
     try {
@@ -171,6 +162,8 @@ const EditorPage = () => {
     setSaving(true);
     try {
       await editorService.updateDocument(documentId, { latex_contenu: code });
+      setIsDirty(false);
+      window.location.reload(); // Refresh the page after saving
     } catch {
       // ignore
     } finally {
@@ -184,12 +177,24 @@ const EditorPage = () => {
     try {
       const res = await editorService.compileLaTeX(code, documentId);
       setCompileResult(res.data);
+
+      // Convert base64 PDF to a unique Blob URL (defeats browser caching)
+      if (res.data.pdf_base64) {
+        // Revoke the previous blob URL to free memory
+        if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+        const byteChars = atob(res.data.pdf_base64);
+        const byteArray = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        setPdfBlobUrl(URL.createObjectURL(blob));
+      } else {
+        setPdfBlobUrl(null);
+      }
     } catch (err) {
       console.error("Compile Error:", err);
       let errorMsg = 'Unknown error occurred during compilation';
       
       if (err.response) {
-        // Server responded with an error status (5xx, 4xx)
         if (err.response.data?.detail) {
           if (typeof err.response.data.detail === 'string') {
             errorMsg = err.response.data.detail;
@@ -200,13 +205,12 @@ const EditorPage = () => {
           errorMsg = `Server error: ${err.response.status}`;
         }
       } else if (err.request) {
-        // Request made but no response received (CORS, timeout, network down)
         errorMsg = 'Network Error: No response received from the server. It might be down or blocked by CORS.';
       } else {
-        // Something happened setting up the request
         errorMsg = err.message;
       }
       
+      setPdfBlobUrl(null);
       setCompileResult({ 
         success: false, 
         errors: errorMsg 
@@ -247,6 +251,7 @@ const EditorPage = () => {
     try {
       const res = await editorService.aiSuggest(code, userMessage.content, documentId);
       setCode(res.data.suggested_code);
+      setIsDirty(true);
       setAiMessages(prev => [...prev, { role: 'ai', content: 'I have updated the code with my suggestions. Please review the changes.' }]);
     } catch {
       setAiMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error modifying the code.' }]);
@@ -452,8 +457,20 @@ const EditorPage = () => {
                 <div className="doc-status">
                   <FileCode size={16} color="#666" />
                   <span className="doc-name">{currentDoc?.titre || 'main.tex'}</span>
-                  <span className="dot"></span>
-                  <span className="status-text">{saving ? 'Saving...' : 'Saved'}</span>
+                  <span 
+                    className="status-dot" 
+                    style={{ 
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      margin: '0 8px',
+                      backgroundColor: isDirty ? '#ff4d4d' : '#4caf50',
+                      boxShadow: isDirty ? '0 0 8px #ff4d4d' : 'none',
+                      transition: 'all 0.3s ease'
+                    }}
+                  ></span>
+                  <span className="status-text">{saving ? 'Saving...' : ''}</span>
                 </div>
                 <div className="view-toggle">
                   <span 
@@ -495,7 +512,10 @@ const EditorPage = () => {
                   <textarea
                     className="latex-textarea"
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
+                    onChange={(e) => {
+                      setCode(e.target.value);
+                      setIsDirty(true);
+                    }}
                     spellCheck={false}
                     placeholder="% Write LaTeX code here..."
                   />
@@ -506,9 +526,9 @@ const EditorPage = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#999' }}>
                       Compiling PDF...
                     </div>
-                  ) : compileResult?.pdf_base64 ? (
+                  ) : pdfBlobUrl ? (
                     <iframe 
-                      src={`data:application/pdf;base64,${compileResult.pdf_base64}`} 
+                      src={pdfBlobUrl} 
                       className="pdf-iframe"
                       title="PDF Preview"
                     />

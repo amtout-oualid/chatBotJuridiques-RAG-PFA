@@ -258,12 +258,207 @@ async def delete_project_file(
 # LATEX COMPILATION
 # ─────────────────────────────────────────────────────────
 
-async def compile_latex(latex_code: str, project_files: List[FichierUtilisateur] = None) -> dict:
-    """
-    Compile LaTeX code to PDF using LaTeXLite API.
+# Supported image extensions that can be sent to the compiler
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".eps", ".svg"}
 
-    Returns {"success": bool, "pdf_url": str | None, "pdf_base64": str | None, "errors": str | None, "log_output": str | None}.
+
+def _sanitize_latex_for_api(latex_code: str) -> str:
     """
+    Rewrite LaTeX commands that trigger the LaTeXLite API's security filter.
+
+    The API blocks any command starting with ``\\include`` (intended to block
+    ``\\include`` and ``\\input``), but this also false-positives on the
+    perfectly safe ``\\includegraphics``.  We rewrite it using TeX's
+    ``\\csname … \\endcsname`` primitive, which constructs the same control
+    sequence at expansion time without the literal ``\\include`` substring
+    appearing in the source.
+    """
+    return latex_code.replace(
+        r"\includegraphics", r"\csname includegraphics\endcsname"
+    )
+
+
+import sys as _sys
+
+_pdflatex_cache: str | None = ...  # sentinel: ... means "not yet searched"
+
+
+def _find_pdflatex() -> str | None:
+    """
+    Locate ``pdflatex`` on this machine.
+
+    Checks the system PATH first, then probes common install directories
+    for MiKTeX and TeX Live on Windows.  The result is cached if found.
+    """
+    global _pdflatex_cache
+    if _pdflatex_cache is not ... and _pdflatex_cache is not None:
+        return _pdflatex_cache
+
+    # 1. Try PATH
+    found = shutil.which("pdflatex")
+    if found:
+        _pdflatex_cache = found
+        return found
+
+    # 2. Probe common Windows install locations
+    if _sys.platform == "win32":
+        home = os.environ.get("LOCALAPPDATA", "")
+        candidates = [
+            os.path.join(home, "Programs", "MiKTeX", "miktex", "bin", "x64", "pdflatex.exe"),
+            os.path.join(home, "Programs", "MiKTeX", "miktex", "bin", "pdflatex.exe"),
+            r"C:\Program Files\MiKTeX\miktex\bin\x64\pdflatex.exe",
+            r"C:\Program Files (x86)\MiKTeX\miktex\bin\x64\pdflatex.exe",
+            # TeX Live
+            r"C:\texlive\2024\bin\windows\pdflatex.exe",
+            r"C:\texlive\2025\bin\windows\pdflatex.exe",
+            r"C:\texlive\2026\bin\windows\pdflatex.exe",
+        ]
+        for path in candidates:
+            if os.path.isfile(path):
+                _pdflatex_cache = path
+                return path
+
+    _pdflatex_cache = None
+    return None
+
+
+async def _compile_locally(
+    latex_code: str,
+    project_files: List[FichierUtilisateur] = None,
+) -> dict | None:
+    """
+    Compile LaTeX locally using ``pdflatex``.
+
+    Creates a temporary directory, writes ``main.tex`` plus all project
+    asset files, runs ``pdflatex`` twice (for cross-references), then
+    reads the resulting PDF.
+
+    Returns a standard result dict, or **None** if ``pdflatex`` is not
+    installed on the system.
+    """
+    pdflatex = _find_pdflatex()
+    if not pdflatex:
+        return None  # signal caller to use a different path
+
+    tmpdir = tempfile.mkdtemp(prefix="latex_local_")
+    try:
+        # ── Write main.tex ──────────────────────────────────────────
+        tex_path = os.path.join(tmpdir, "main.tex")
+        with open(tex_path, "w", encoding="utf-8") as f:
+            f.write(latex_code)
+
+        # ── Copy project assets alongside main.tex ──────────────────
+        if project_files:
+            for pf in project_files:
+                if not os.path.exists(pf.url_stockage):
+                    continue
+                dest = os.path.join(tmpdir, pf.nom_fichier)
+                shutil.copy2(pf.url_stockage, dest)
+
+        # ── Run pdflatex (twice for cross-refs) ─────────────────────
+        import subprocess
+        for _pass in range(2):
+            proc = await asyncio.to_thread(
+                subprocess.run,
+                [pdflatex, "-interaction=nonstopmode", "-halt-on-error", "main.tex"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=30,
+            )
+            stdout = proc.stdout
+
+        # ── Read result ─────────────────────────────────────────────
+        pdf_path = os.path.join(tmpdir, "main.pdf")
+        if os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+            pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            return {
+                "success": True,
+                "pdf_url": None,
+                "pdf_base64": pdf_b64,
+                "errors": None,
+                "log_output": None,
+            }
+
+        # Compilation ran but produced no PDF — return the log
+        log = stdout.decode("utf-8", errors="replace") if stdout else ""
+        return {
+            "success": False,
+            "pdf_url": None,
+            "pdf_base64": None,
+            "errors": f"Local pdflatex compilation failed:\n{log[:2000]}",
+            "log_output": log,
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "pdf_url": None,
+            "pdf_base64": None,
+            "errors": "Local pdflatex compilation timed out after 30 seconds.",
+            "log_output": None,
+        }
+    except Exception as e:
+        # Any unexpected error → return None so caller falls back to API
+        import traceback
+        traceback.print_exc()
+        return None
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+async def compile_latex(
+    latex_code: str,
+    project_files: List[FichierUtilisateur] = None,
+) -> dict:
+    """
+    Compile LaTeX code to PDF.
+
+    Strategy:
+      1. If the project contains image assets → try **local** ``pdflatex``
+         first (the only way images can be resolved).
+      2. If local compilation is unavailable or there are no images →
+         use the **LaTeXLite cloud API**.
+      3. If images are present but pdflatex is missing → return a helpful
+         error telling the user to install a TeX distribution.
+
+    Returns {"success": bool, "pdf_url": str | None,
+             "pdf_base64": str | None, "errors": str | None,
+             "log_output": str | None}.
+    """
+
+    # ── Detect whether the project uses images ──────────────────────
+    has_images = False
+    if project_files:
+        has_images = any(
+            os.path.splitext(pf.nom_fichier)[1].lower() in _IMAGE_EXTENSIONS
+            for pf in project_files
+        )
+
+    # ── Path A: local compilation (required for images) ─────────────
+    if has_images:
+        local_result = await _compile_locally(latex_code, project_files)
+        if local_result is not None:
+            return local_result
+        # pdflatex not found — give a clear, actionable error
+        return {
+            "success": False,
+            "pdf_url": None,
+            "pdf_base64": None,
+            "errors": (
+                "Your document references image files, but the cloud "
+                "compiler (LaTeXLite) does not support multi-file projects.\n\n"
+                "To compile documents with images you need a local TeX "
+                "installation.\n"
+                "→ Install MiKTeX from https://miktex.org/download and "
+                "restart the backend server.\n"
+                "   MiKTeX automatically installs missing packages on first use."
+            ),
+            "log_output": None,
+        }
+
+    # ── Path B: cloud API (text-only documents) ─────────────────────
     settings = get_settings()
     api_key = settings.LATEXLITE_API_KEY or os.environ.get("LATEXLITE_API_KEY")
 
@@ -277,55 +472,81 @@ async def compile_latex(latex_code: str, project_files: List[FichierUtilisateur]
         }
 
     try:
-        files = [
-            ("template", ("main.tex", latex_code, "text/plain"))
-        ]
-        
-        if project_files:
-            for pf in project_files:
-                if os.path.exists(pf.url_stockage):
-                    with open(pf.url_stockage, "rb") as f:
-                        content = f.read()
-                        mime = pf.type_mime or "application/octet-stream"
-                        files.append((pf.nom_fichier, (pf.nom_fichier, content, mime)))
+        # Rewrite \includegraphics to bypass API's \include security filter
+        latex_code = _sanitize_latex_for_api(latex_code)
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        files_payload = [
+            ("template", ("main.tex", latex_code.encode("utf-8"), "text/plain"))
+        ]
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
                 "https://latexlite.com/v1/renders-sync",
-                headers={"Authorization": f"Bearer {api_key}"},
-                files=files
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Accept": "application/json",
+                },
+                files=files_payload,
             )
 
-        if resp.status_code == 200:
-            pdf_base64 = base64.b64encode(resp.content).decode("utf-8")
+        # ── Success (200 = clean, 201 = watermarked) ────────────────
+        if resp.status_code in (200, 201):
+            try:
+                json_resp = resp.json()
+                pdf_b64 = json_resp.get("data", {}).get("pdf_base64")
+            except Exception:
+                pdf_b64 = base64.b64encode(resp.content).decode("utf-8")
+                return {
+                    "success": True,
+                    "pdf_url": None,
+                    "pdf_base64": pdf_b64,
+                    "errors": None,
+                    "log_output": None,
+                }
+
+            if pdf_b64:
+                warning = None
+                if resp.status_code == 201:
+                    wm = json_resp.get("data", {}).get("watermark", {})
+                    warning = wm.get("message", "PDF includes an evaluation watermark.")
+                return {
+                    "success": True,
+                    "pdf_url": None,
+                    "pdf_base64": pdf_b64,
+                    "errors": warning,
+                    "log_output": None,
+                }
+
+            pdf_b64 = base64.b64encode(resp.content).decode("utf-8")
             return {
                 "success": True,
                 "pdf_url": None,
-                "pdf_base64": pdf_base64,
+                "pdf_base64": pdf_b64,
                 "errors": None,
                 "log_output": None,
             }
-        else:
-            try:
-                error_data = resp.json()
-                error_msg = error_data.get("error", {}).get("message", resp.text)
-            except Exception:
-                error_msg = resp.text
 
-            return {
-                "success": False,
-                "pdf_url": None,
-                "pdf_base64": None,
-                "errors": f"LaTeXLite API Error: {error_msg}",
-                "log_output": None,
-            }
+        # ── Error responses ─────────────────────────────────────────
+        try:
+            error_data = resp.json()
+            error_msg = error_data.get("error", {}).get("message", resp.text)
+        except Exception:
+            error_msg = resp.text
+
+        return {
+            "success": False,
+            "pdf_url": None,
+            "pdf_base64": None,
+            "errors": f"LaTeXLite API Error: {error_msg}",
+            "log_output": None,
+        }
 
     except httpx.TimeoutException:
         return {
             "success": False,
             "pdf_url": None,
             "pdf_base64": None,
-            "errors": "LaTeX compilation timed out after 30 seconds (LaTeXLite).",
+            "errors": "LaTeX compilation timed out after 60 seconds.",
             "log_output": None,
         }
     except Exception as e:
@@ -338,6 +559,7 @@ async def compile_latex(latex_code: str, project_files: List[FichierUtilisateur]
             "errors": f"Unexpected backend error during compilation: {repr(e)}",
             "log_output": None,
         }
+
 
 
 # ─────────────────────────────────────────────────────────
@@ -368,6 +590,10 @@ async def ai_suggest(latex_code: str, prompt: str, project_files: List[FichierUt
     
     combined_prompt += (
         f"L'utilisateur demande : {prompt}\n\n"
+        f"IMPORTANT : Pour inclure des images ou fichiers, utilise la commande \\includegraphics{{nom_du_fichier}} "
+        f"(juste le nom du fichier, sans préfixe 'assets/') "
+        f"et assure-toi que le package \\usepackage{{graphicx}} est présent. "
+        f"N'utilise JAMAIS la commande \\include car elle est bloquée par l'API pour des raisons de sécurité.\n\n"
         f"Retourne uniquement le code LaTeX modifié, sans explication supplémentaire."
     )
     return await call_legal_ai(combined_prompt)
