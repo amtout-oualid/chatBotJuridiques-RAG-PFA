@@ -1,0 +1,56 @@
+Users (Clerk Synchronization)
+    - insert new user on first login
+    - update user info (email, name) on Clerk change
+    - fetch user role (client/avocat) for permissions
+
+Lawyer Profiles
+    - create lawyer profile (specialty, bio, phone, barreau)
+    - update lawyer profile details
+    - update lawyer availability status (online/offline)
+    - fetch specific lawyer profile by user ID
+    - fetch list of all available lawyers filtered by specialty
+
+AI Chat Sessions
+    - create new AI session
+    - fetch list of all active AI sessions for a specific user
+    - update AI session title
+    - fetch single AI session metadata
+    - update AI session pin status (true/false)
+    - update AI session last modified date
+    - soft delete AI session (mark is_deleted = true)
+
+AI Messages & RAG
+    - insert new message from user
+    - insert new message from AI (including RAG JSON sources)
+    - fetch all messages for a specific AI session (paginated)
+
+Legal Templates (LaTeX Skeletons)
+    - fetch list of all active templates (metadata only)
+    - fetch the raw LaTeX skeleton code for a selected template
+
+Generated Documents (LaTeX Editor)
+    - create new generated document (linked to user and optional template)
+    - fetch list of all active documents for a user
+    - fetch specific document content to load into the editor
+    - update document latex content (auto-save trigger)
+    - update document status (brouillon to finalise)
+    - update document PDF URL (after compilation)
+    - soft delete document (mark is_deleted = true)
+
+User Files Management (PDFs for Context)
+    - insert new uploaded file metadata (name, url, mime type)
+    - fetch list of all files uploaded by a user
+    - update file indexing status to true (after Qdrant processing is done)
+    - delete file record from database (when user removes it)
+
+Direct Lawyer-Client Conversations
+    - create new direct conversation linking client and lawyer
+    - fetch list of all active direct conversations for a user
+    - fetch specific direct conversation metadata
+    - update conversation last activity timestamp
+    - update conversation status
+
+Direct Messages
+    - insert new direct message into a conversation
+    - fetch all direct messages for a specific conversation
+    - update direct message read status (mark as read)

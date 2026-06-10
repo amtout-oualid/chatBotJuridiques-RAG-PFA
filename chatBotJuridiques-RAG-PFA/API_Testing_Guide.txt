@@ -1,0 +1,126 @@
+====================================================================
+CHATBOT JURIDIQUE - RAG API : SWAGGER UI TESTING GUIDE
+====================================================================
+
+This guide provides a step-by-step checklist to test your backend API 
+using the Swagger UI at http://127.0.0.1:8000/docs.
+
+--------------------------------------------------------------------
+STEP 0: PREREQUISITES & AUTHENTICATION SETUP
+--------------------------------------------------------------------
+[ ] 1. Start your backend server: 
+       cd backend
+       .venv\Scripts\activate
+       uvicorn app.main:app --reload
+
+[ ] 2. Open http://127.0.0.1:8000/docs in your browser.
+
+[ ] 3. Obtain a valid Clerk JWT Token:
+       - Since all routes (except Health) are protected, you need a token.
+       - If you have a working frontend, log in and copy the `Authorization: Bearer <token>` from the network tab.
+       - Alternatively, use Clerk's dashboard or CLI to generate a test token.
+       - NOTE: In Swagger UI, you must click the "Authorize" button (usually a padlock icon) at the top or on individual endpoints and paste your Bearer token. Currently, the Swagger UI doesn't have the global security scheme configured visually, so you might need to use a tool like Postman or modify `app.main.py` to add the Security scheme for Swagger. For now, if testing via Swagger directly fails due to missing headers, use Postman/Insomnia and set the `Authorization` header to `Bearer YOUR_TOKEN_HERE`.
+
+--------------------------------------------------------------------
+STEP 1: AUTHENTICATION & USERS (Must be done first)
+--------------------------------------------------------------------
+[ ] 1. Test POST /auth/sync
+       - Body: {"email": "test@example.com", "nom": "Doe", "prenom": "John", "role": "client"}
+       - Expected: 200 OK. Returns your user profile. This inserts your Clerk ID into the `utilisateurs` table.
+
+[ ] 2. Test GET /users/me
+       - Expected: 200 OK. Returns the profile you just created.
+
+[ ] 3. Test PUT /users/settings
+       - Body: {"nom": "Doe Updated", "role": "avocat"}
+       - Expected: 200 OK. Returns updated profile.
+
+--------------------------------------------------------------------
+STEP 2: LAWYERS DIRECTORY (Read-only)
+--------------------------------------------------------------------
+[ ] 1. Pre-requisite: Manually insert a lawyer profile in pgAdmin into the `profils_avocats` table using your user ID, or just test an empty list.
+[ ] 2. Test GET /lawyers
+       - Expected: 200 OK. Returns {"lawyers": []} (or list of lawyers if you inserted one).
+[ ] 3. Test GET /lawyers?specialite=penal
+       - Expected: 200 OK. Tests the query parameter filtering.
+[ ] 4. Test GET /lawyers/{lawyer_id}
+       - Parameters: Use your Clerk user ID (if you made yourself a lawyer).
+       - Expected: 200 OK. Returns lawyer details.
+
+--------------------------------------------------------------------
+STEP 3: AI CHAT (Sessions & Messages)
+--------------------------------------------------------------------
+[ ] 1. Test POST /chats
+       - Body: {"titre": "Mon problème de bail"}
+       - Expected: 201 Created. Returns the new session object. COPY THE `id` (UUID).
+
+[ ] 2. Test GET /chats
+       - Expected: 200 OK. You should see the session you just created in the list.
+
+[ ] 3. Test POST /chats/{session_id}/messages
+       - Parameters: session_id = <the UUID you copied>
+       - Body: {"contenu": "Bonjour, quelles sont les règles d'expulsion au Maroc ?"}
+       - Expected: 201 Created. This will call the Gemini API! It should take a few seconds and return a dictionary with `user_message` and `ai_message`.
+
+[ ] 4. Test GET /chats/{session_id}
+       - Parameters: session_id = <the UUID>
+       - Expected: 200 OK. Returns the session metadata AND the two messages (yours and the AI's).
+
+[ ] 5. Test PATCH /chats/{session_id}
+       - Parameters: session_id = <the UUID>
+       - Body: {"epingle": true, "titre": "Bail (Important)"}
+       - Expected: 200 OK. Returns updated session.
+
+[ ] 6. Test DELETE /chats/{session_id}
+       - Parameters: session_id = <the UUID>
+       - Expected: 200 OK. Returns {"message": "Session deleted successfully."}.
+       - Verify: Call GET /chats again. The session should be gone (soft deleted).
+
+--------------------------------------------------------------------
+STEP 4: FILES (Document Management)
+--------------------------------------------------------------------
+[ ] 1. Test POST /files/upload
+       - Action: Select a small test file (PDF, TXT, or Image).
+       - Expected: 201 Created. Returns file metadata. COPY THE `id`.
+       - Check: Look in `backend/uploads/{your_clerk_id}/` folder to see if the physical file was saved.
+
+[ ] 2. Test GET /files
+       - Expected: 200 OK. Returns the list containing your uploaded file.
+
+[ ] 3. Test GET /files/search?q=test
+       - Expected: 200 OK. Returns files matching the filename.
+
+[ ] 4. Test DELETE /files/{file_id}
+       - Parameters: file_id = <the UUID>
+       - Expected: 200 OK.
+       - Check: The file should be removed from the `backend/uploads/` directory.
+
+--------------------------------------------------------------------
+STEP 5: EDITOR (LaTeX Generation)
+--------------------------------------------------------------------
+[ ] 1. Test GET /editor/templates
+       - Expected: 200 OK. (Will return empty list until you insert templates in pgAdmin).
+
+[ ] 2. Test POST /editor/docs
+       - Body: {"titre": "Mon Contrat", "latex_contenu": "\\documentclass{article}\\begin{document}Hello\\end{document}"}
+       - Expected: 201 Created. Returns document metadata. COPY THE `id`.
+
+[ ] 3. Test GET /editor/docs
+       - Expected: 200 OK. Returns the list containing your new document.
+
+[ ] 4. Test GET /editor/docs/{document_id}
+       - Parameters: document_id = <the UUID>
+       - Expected: 200 OK. Returns full document details including latex code.
+
+[ ] 5. Test PUT /editor/docs/{document_id}
+       - Parameters: document_id = <the UUID>
+       - Body: {"latex_contenu": "\\documentclass{article}\\begin{document}Updated!\\end{document}"}
+       - Expected: 200 OK. Returns updated document.
+
+[ ] 6. Test POST /editor/ai-suggest
+       - Body: {"latex_code": "...", "prompt": "Ajoute un article sur la confidentialité"}
+       - Expected: 200 OK. Calls Gemini and returns suggested code.
+
+[ ] 7. Test POST /editor/compile (Optional, requires pdflatex)
+       - Body: {"latex_code": "\\documentclass{article}\\begin{document}Test\\end{document}"}
+       - Expected: 200 OK with `success: true` and a `pdf_url`, OR `success: false` and an error message explaining that pdflatex is not installed.

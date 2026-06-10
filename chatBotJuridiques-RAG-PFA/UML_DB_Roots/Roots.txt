@@ -1,0 +1,114 @@
+/src
+├── api/                    # Axios central configuration
+│   ├── axiosInstance.js    # Base URL, interceptors for Clerk tokens
+│   └── endpoints.js        # Constant file for all API paths
+├── assets/                 # Icons, logos, and global styles
+├── components/             # Reusable UI (Buttons, Inputs, Modals)
+├── features/               # Module-specific logic and components
+│   ├── chat/               # Components, hooks, and services for AI Chat
+│   ├── database/           # File explorer and document management
+│   ├── editor/             # LaTeX editor and AI-edit logic
+│   └── lawyers/            # Lawyer directory and profile cards
+├── layouts/                # Wrapper layouts (MainLayout with double sidebar)
+├── pages/                  # Top-level route components
+├── services/               # Axios API call functions (grouped by feature)
+│   ├── chatService.js
+│   ├── fileService.js
+│   └── editorService.js
+├── store/                  # State management (Zustand or Redux)
+├── App.js                  # Route definitions
+└── index.js                # Entry point with ClerkProvider
+
+
+
+Backend API Route Map (RESTful)
+Frontend: React
+
+Backend: FastAPI
+
+Database: PostgreSQL
+
+1. Authentication & User Management
+POST /auth/sync
+
+Description: Syncs Clerk metadata (names, email) to the PostgreSQL database after login.
+
+GET /users/me
+
+Description: Retrieves current user profile, role (Client/Avocat), and preferences.
+
+PUT /users/settings
+
+Description: Updates user preferences (e.g., Dark/Light mode, notification settings).
+
+2. AI Chat (Legal Assistant)
+GET /chats
+
+Description: Retrieves all chat session history for the sidebar list.
+
+POST /chats
+
+Description: Creates a new chat session.
+
+GET /chats/{id}
+
+Description: Fetches all messages for a specific session.
+
+POST /chats/{id}/messages
+
+Description: Sends a user prompt and triggers the RAG pipeline for an AI response.
+
+PATCH /chats/{id}
+
+Description: Updates chat session metadata (e.g., renaming the title or pinning).
+
+DELETE /chats/{id}
+
+Description: Soft deletes a chat session.
+
+3. My Database (DMS & RAG Context)
+GET /files
+
+Description: Lists all files and folders in the user's private document management system.
+
+POST /files/upload
+
+Description: Uploads a PDF/document and initiates the vectorization process for RAG.
+
+GET /files/search
+
+Description: Performs a semantic search across uploaded legal documents.
+
+DELETE /files/{id}
+
+Description: Removes a file from the database and the vector store.
+
+4. LaTeX Editor (Document Generation)
+GET /editor/templates
+
+Description: Fetches legal "skeletons" (NDAs, contracts) from the library.
+
+POST /editor/compile
+
+Description: Sends LaTeX code to the server to compile and return a PDF preview.
+
+GET /editor/docs
+
+Description: Retrieves all saved LaTeX documents created by the user.
+
+PUT /editor/docs/{id}
+
+Description: Saves changes to the LaTeX code (Auto-save feature).
+
+POST /editor/ai-suggest
+
+Description: Sends code + prompt; returns AI-edited code diffs (Accept/Reject logic).
+
+5. Professional Directory (Lawyers)
+GET /lawyers
+
+Description: Fetches a list of lawyers filtered by specialty or region.
+
+GET /lawyers/{id}
+
+Description: Retrieves full bio, contact details, and barreau (Bar) information for a specific lawyer.

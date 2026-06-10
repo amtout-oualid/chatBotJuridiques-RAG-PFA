@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lexis Legal AI Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "outline": "#7e7576",
+                        "primary": "#000000",
+                        "surface": "#f9f9f9",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#474746",
+                        "secondary-fixed": "#e5e2e1",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-tertiary-container": "#848484",
+                        "surface-container-high": "#e8e8e8",
+                        "on-secondary": "#ffffff",
+                        "text-charcoal": "#171717",
+                        "on-primary-container": "#848484",
+                        "on-primary-fixed": "#1b1b1b",
+                        "inverse-primary": "#c6c6c6",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#f0f1f1",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#474747",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "on-surface": "#1a1c1c",
+                        "secondary-container": "#e2dfde",
+                        "outline-variant": "#cfc4c5",
+                        "surface-dim": "#dadada",
+                        "border-subtle": "#E5E5E5",
+                        "surface-muted": "#F5F5F5",
+                        "surface-container-low": "#f3f3f4",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-secondary-container": "#636262",
+                        "on-surface-variant": "#4c4546",
+                        "background": "#f9f9f9",
+                        "surface-bright": "#f9f9f9",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "primary-fixed": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#000000",
+                        "tertiary-container": "#1b1c1c",
+                        "on-background": "#1a1c1c",
+                        "secondary": "#5f5e5e",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "surface-container": "#eeeeee",
+                        "inverse-surface": "#2f3131",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "primary-container": "#1b1b1b",
+                        "tertiary-fixed": "#e3e2e2",
+                        "surface-tint": "#5e5e5e"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "container-max": "1024px",
+                        "margin-desktop": "40px",
+                        "section-gap": "80px",
+                        "stack-gap": "24px",
+                        "gutter": "16px",
+                        "margin-mobile": "20px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Inter", "sans-serif"],
+                        "code-sm": ["JetBrains Mono", "monospace"],
+                        "headline-md": ["Inter", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "code-md": ["JetBrains Mono", "monospace"],
+                        "label-caps": ["Inter", "sans-serif"],
+                        "headline-lg": ["Inter", "sans-serif"],
+                        "headline-lg-mobile": ["Inter", "sans-serif"]
+                    },
+                    fontSize: {
+                        "body-md": ["15px", { lineHeight: "1.5", fontWeight: "400" }],
+                        "code-sm": ["12px", { lineHeight: "1.5", fontWeight: "400" }],
+                        "headline-md": ["24px", { lineHeight: "1.3", letterSpacing: "-0.01em", fontWeight: "500" }],
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "code-md": ["14px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "label-caps": ["12px", { lineHeight: "1.0", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "headline-lg": ["48px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "600" }],
+                        "headline-lg-mobile": ["32px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-text-charcoal font-body-md text-body-md overflow-hidden antialiased h-screen flex w-full">
+<!-- Global Rail: SideNavBar (JSON Component) -->
+<nav class="fixed left-0 top-0 h-full w-16 md:w-20 bg-surface dark:bg-surface border-r border-border-subtle dark:border-outline-variant flex flex-col items-center py-6 z-50">
+<!-- Brand / Avatar -->
+<div class="mb-8 flex flex-col items-center justify-center cursor-pointer">
+<div class="w-10 h-10 bg-primary text-on-primary rounded-lg flex items-center justify-center font-bold text-lg leading-none tracking-tighter">Lx</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex flex-col gap-6 w-full items-center">
+<!-- Active Tab: Chat -->
+<a aria-label="Chat" class="flex flex-col items-center gap-1 group text-primary dark:text-primary font-bold border-r-2 border-primary w-full py-2 hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="chat" style="font-variation-settings: 'FILL' 1;">chat</span>
+<span class="font-label-caps text-label-caps mt-1 hidden md:block">Chat</span>
+</a>
+<!-- Inactive Tabs -->
+<a aria-label="Database" class="flex flex-col items-center gap-1 group text-secondary dark:text-secondary-fixed-dim w-full py-2 hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors border-r-2 border-transparent" href="#">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-label-caps text-label-caps mt-1 hidden md:block">Database</span>
+</a>
+<a aria-label="LaTeX Editor" class="flex flex-col items-center gap-1 group text-secondary dark:text-secondary-fixed-dim w-full py-2 hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors border-r-2 border-transparent" href="#">
+<span class="material-symbols-outlined" data-icon="edit_note">edit_note</span>
+<span class="font-label-caps text-label-caps mt-1 hidden md:block text-center px-1">LaTeX</span>
+</a>
+<a aria-label="Library" class="flex flex-col items-center gap-1 group text-secondary dark:text-secondary-fixed-dim w-full py-2 hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors border-r-2 border-transparent" href="#">
+<span class="material-symbols-outlined" data-icon="library_books">library_books</span>
+<span class="font-label-caps text-label-caps mt-1 hidden md:block">Library</span>
+</a>
+</div>
+<!-- Spacer -->
+<div class="flex-grow"></div>
+<!-- User / Settings (Implied bottom action) -->
+<a aria-label="Settings" class="flex flex-col items-center gap-1 group text-secondary dark:text-secondary-fixed-dim w-full py-2 hover:bg-surface-muted dark:hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</a>
+</nav>
+<!-- Content Wrapper ensuring layout sits next to fixed rail -->
+<div class="flex-1 ml-16 md:ml-20 flex h-full overflow-hidden">
+<!-- Secondary Sidebar: Chat History (User Requested) -->
+<aside class="w-64 md:w-72 bg-surface-container-low border-r border-border-subtle flex flex-col h-full flex-shrink-0">
+<!-- Sidebar Header / New Chat Action -->
+<div class="p-4 border-b border-border-subtle">
+<button class="w-full bg-primary text-on-primary py-2.5 px-4 rounded font-label-caps text-label-caps flex items-center justify-between hover:opacity-90 transition-opacity uppercase tracking-widest">
+<span>New Chat</span>
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+</button>
+</div>
+<!-- Scrollable Chat Lists -->
+<div class="flex-1 overflow-y-auto p-4 space-y-6">
+<!-- Pinned Chats -->
+<div>
+<h3 class="font-label-caps text-label-caps text-secondary mb-3 px-2 uppercase tracking-widest">Pinned</h3>
+<ul class="space-y-1">
+<li>
+<a class="block px-3 py-2 rounded bg-surface-muted text-primary font-medium hover:bg-surface-variant transition-colors truncate border border-border-subtle" href="#">
+                                Alpha Corp M&amp;A Terms
+                            </a>
+</li>
+<li>
+<a class="block px-3 py-2 rounded text-text-charcoal hover:bg-surface-muted transition-colors truncate border border-transparent hover:border-border-subtle" href="#">
+                                IP Infringement Precedent
+                            </a>
+</li>
+</ul>
+</div>
+<!-- Recent Chats -->
+<div>
+<h3 class="font-label-caps text-label-caps text-secondary mb-3 px-2 uppercase tracking-widest">Recent</h3>
+<ul class="space-y-1">
+<li>
+<a class="block px-3 py-2 rounded text-text-charcoal hover:bg-surface-muted transition-colors truncate border border-transparent hover:border-border-subtle" href="#">
+                                Employment Contract Draft v2
+                            </a>
+</li>
+<li>
+<a class="block px-3 py-2 rounded text-text-charcoal hover:bg-surface-muted transition-colors truncate border border-transparent hover:border-border-subtle" href="#">
+                                Subpoena Compliance Check
+                            </a>
+</li>
+<li>
+<a class="block px-3 py-2 rounded text-text-charcoal hover:bg-surface-muted transition-colors truncate border border-transparent hover:border-border-subtle" href="#">
+                                Case Summary: Smith v. Jones
+                            </a>
+</li>
+</ul>
+</div>
+</div>
+</aside>
+<!-- Main Chat Area -->
+<main class="flex-1 flex flex-col bg-surface-container-lowest relative h-full">
+<!-- TopNavBar (JSON Component adapted for main area context) -->
+<header class="h-16 flex justify-between items-center px-8 z-40 bg-surface dark:bg-surface border-b border-border-subtle dark:border-outline-variant flex-shrink-0">
+<div class="flex items-center gap-4">
+<span class="font-headline-md text-headline-md text-primary dark:text-primary font-black tracking-tight">Lexis Legal</span>
+<nav class="hidden md:flex gap-6 ml-8">
+<a class="text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary transition-colors pb-1" href="#">Drafts</a>
+<a class="text-primary dark:text-primary font-bold border-b-2 border-primary pb-1" href="#">Recent</a>
+<a class="text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary transition-colors pb-1" href="#">Starred</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<!-- Search Input (on_right) -->
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-sm" data-icon="search">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-surface-muted border border-border-subtle rounded focus:outline-none focus:border-primary text-sm font-body-md w-64 placeholder-secondary" placeholder="Search context..." type="text"/>
+</div>
+<button class="font-label-caps text-label-caps text-secondary hover:text-primary transition-colors uppercase tracking-widest ml-4 hidden md:block">Sign In</button>
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded font-label-caps text-label-caps hover:opacity-80 transition-opacity uppercase tracking-widest ml-2">New Document</button>
+</div>
+</header>
+<!-- Chat Messages Scroll Area -->
+<div class="flex-1 overflow-y-auto p-4 md:p-8">
+<div class="max-w-3xl mx-auto w-full space-y-8 pb-20">
+<!-- AI Welcome / System Message -->
+<div class="flex flex-col items-center justify-center text-center py-12">
+<div class="w-16 h-16 bg-surface-muted border border-border-subtle rounded-full flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="gavel">gavel</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-primary mb-2">Alpha Corp M&amp;A Terms</h2>
+<p class="font-body-md text-body-md text-secondary max-w-md">I am ready to analyze the merger agreement. You can paste clauses or ask for specific precedent comparisons.</p>
+</div>
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="bg-surface-muted border border-border-subtle p-5 rounded-lg max-w-[85%] sm:max-w-2xl text-primary font-body-md">
+                            Please review Section 4.2 (Indemnification) of the uploaded draft and highlight any non-standard deviations from typical Delaware corporate law practice regarding survival periods.
+                        </div>
+</div>
+<!-- AI Message -->
+<div class="flex justify-start">
+<div class="py-4 pr-6 pl-2 max-w-[95%] sm:max-w-3xl text-primary font-body-md leading-relaxed">
+<p class="mb-4">I have analyzed Section 4.2 (Indemnification) of the provided draft against standard Delaware corporate M&amp;A precedents.</p>
+<p class="mb-2 font-medium">Key Findings:</p>
+<ul class="list-disc pl-5 space-y-2 mb-4 text-text-charcoal">
+<li>The proposed survival period for general representations and warranties is set at <strong class="text-primary">24 months</strong>. This is notably longer than the typical 12-18 month standard observed in recent mid-market Delaware transactions.</li>
+<li>The Fundamental Representations are stated to survive indefinitely, which is standard practice.</li>
+<li>There is an unusual carve-out regarding the definition of "Losses" that excludes consequential damages even if reasonably foreseeable.</li>
+</ul>
+<div class="bg-surface-muted border border-border-subtle p-4 rounded font-code-sm text-code-sm text-on-surface-variant mb-4 overflow-x-auto">
+<span class="text-secondary select-none">Draft excerpt (Sec 4.2.a):</span><br/>
+                                "...shall survive the Closing and shall terminate on the twenty-four (24) month anniversary of the Closing Date..."
+                            </div>
+<p>Would you like me to draft a proposed revision reducing the survival period to 18 months, or provide case law examples supporting standard definitions of indemnifiable losses?</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Input Bar -->
+<div class="p-4 md:p-6 w-full border-t border-border-subtle bg-surface-container-lowest">
+<div class="max-w-3xl mx-auto w-full relative">
+<div class="flex items-end gap-2 bg-surface border border-border-subtle rounded-lg focus-within:border-primary transition-colors p-2 shadow-sm">
+<!-- Attachment Action -->
+<button aria-label="Add attachment" class="p-2 text-secondary hover:text-primary transition-colors rounded hover:bg-surface-muted shrink-0">
+<span class="material-symbols-outlined text-xl leading-none" data-icon="add_circle">add_circle</span>
+</button>
+<!-- Input Field -->
+<textarea class="flex-1 bg-transparent border-none focus:ring-0 resize-none font-body-md text-body-md p-2 max-h-32 placeholder-secondary" placeholder="Message Lexis AI or type '/' for commands..." rows="1"></textarea>
+<!-- Send Action -->
+<button aria-label="Send message" class="p-2 bg-primary text-on-primary hover:opacity-90 transition-opacity rounded shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-lg leading-none" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+<div class="text-center mt-2">
+<span class="font-code-sm text-code-sm text-secondary text-xs">Lexis AI can make mistakes. Consider verifying critical legal assertions.</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
