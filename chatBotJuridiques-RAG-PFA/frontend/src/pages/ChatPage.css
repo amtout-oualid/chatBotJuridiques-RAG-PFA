@@ -118,6 +118,12 @@
   color: #000;
 }
 
+.user-message p {
+  margin: 0;
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
 .user-message .attached-file {
   display: inline-flex;
   align-items: center;

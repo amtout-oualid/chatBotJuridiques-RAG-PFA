@@ -13,6 +13,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import ChatSessionList from '../components/ChatSessionList';
 import FileAttachModal from '../components/FileAttachModal';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 import { chatService } from '../services/chatService';
 import './ChatPage.css';
 
@@ -249,7 +250,7 @@ export default function ChatPage() {
                 </div>
               ) : (
                 <div key={msg.id || i} className="ai-message">
-                  <p style={{ whiteSpace: 'pre-wrap' }}>{msg.contenu}</p>
+                  <MarkdownRenderer content={msg.contenu} />
                 </div>
               ),
             )}
