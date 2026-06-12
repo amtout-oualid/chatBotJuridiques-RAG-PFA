@@ -57,6 +57,13 @@ const EditorPage = () => {
   // Ref for auto-save
   const autoSaveTimer = useRef(null);
 
+  // Inline editing state
+  const [editingDocId, setEditingDocId] = useState(null);
+  const [editingDocTitle, setEditingDocTitle] = useState('');
+  
+  const [editingFileId, setEditingFileId] = useState(null);
+  const [editingFileName, setEditingFileName] = useState('');
+
   const loadDocuments = useCallback(async () => {
     try {
       const res = await editorService.listDocuments();
@@ -71,6 +78,49 @@ const EditorPage = () => {
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
+
+  // Load pinned state from local storage on mount
+  const [pinnedDocs, setPinnedDocs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pinnedLatexDocs');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pinnedLatexDocs', JSON.stringify(pinnedDocs));
+  }, [pinnedDocs]);
+
+  // ...
+
+  const handleRenameDocSubmit = async (id) => {
+    if (editingDocTitle && editingDocTitle.trim() !== '') {
+      try {
+        await editorService.updateDocument(id, { titre: editingDocTitle.trim() });
+        setDocuments(prev => prev.map(d => d.id === id ? { ...d, titre: editingDocTitle.trim() } : d));
+        if (currentDoc?.id === id) {
+          setCurrentDoc(prev => ({ ...prev, titre: editingDocTitle.trim() }));
+        }
+      } catch {
+        alert('Failed to rename project.');
+      }
+    }
+    setEditingDocId(null);
+  };
+
+  const handleRenameFileSubmit = async (fileId) => {
+    if (editingFileName && editingFileName.trim() !== '') {
+      try {
+        await editorService.renameProjectFile(documentId, fileId, editingFileName.trim());
+        setUploadedFiles(prev => prev.map(f => f.id === fileId ? { ...f, nom_fichier: editingFileName.trim() } : f));
+      } catch {
+        alert('Failed to rename file.');
+      }
+    }
+    setEditingFileId(null);
+  };
 
   // Revoke blob URL on unmount or document switch to avoid memory leaks
   useEffect(() => {
@@ -150,7 +200,6 @@ const EditorPage = () => {
   };
 
   // Mock toggle pin since the backend doesn't support it for documents directly
-  const [pinnedDocs, setPinnedDocs] = useState({});
   const handleTogglePin = (e, id) => {
     e.stopPropagation();
     setActiveMenuId(null);
@@ -332,42 +381,117 @@ const EditorPage = () => {
               ) : documents.length === 0 ? (
                 <div style={{ padding: '20px', color: '#999', fontSize: '13px' }}>No projects yet.</div>
               ) : (
-                documents
-                  .sort((a, b) => (pinnedDocs[b.id] ? 1 : 0) - (pinnedDocs[a.id] ? 1 : 0))
-                  .map(doc => (
-                  <div 
-                    key={doc.id} 
-                    className="ws-item project-item" 
-                    onClick={() => navigate(`/editor/${doc.id}`)}
-                    onMouseLeave={() => setActiveMenuId(null)}
-                  >
-                    <FileText size={14} />
-                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {pinnedDocs[doc.id] && '📌 '}{doc.titre || 'Untitled'}
-                    </span>
-                    
-                    <div className="project-actions" onClick={e => e.stopPropagation()}>
-                      <MoreHorizontal 
-                        size={16} 
-                        className="menu-icon"
-                        onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
-                      />
-                      {activeMenuId === doc.id && (
-                        <div className="project-dropdown">
-                          <div className="dropdown-item" onClick={(e) => handleRename(e, doc.id, doc.titre)}>
-                            Rename
-                          </div>
-                          <div className="dropdown-item" onClick={(e) => handleTogglePin(e, doc.id)}>
-                            {pinnedDocs[doc.id] ? 'Unpin' : 'Pin'}
-                          </div>
-                          <div className="dropdown-item delete" onClick={(e) => handleDelete(e, doc.id)}>
-                            Delete
+                <>
+                  {documents.filter(d => pinnedDocs[d.id]).length > 0 && (
+                    <div className="session-list-section">
+                      <div className="session-list-section__title" style={{ padding: '10px 20px', fontSize: '11px', color: '#888', fontWeight: 600 }}>PINNED</div>
+                      {documents.filter(d => pinnedDocs[d.id]).map(doc => (
+                        <div 
+                          key={doc.id} 
+                          className="ws-item project-item" 
+                          onClick={() => { if (editingDocId !== doc.id) navigate(`/editor/${doc.id}`) }}
+                          onMouseLeave={() => setActiveMenuId(null)}
+                        >
+                          <FileText size={14} />
+                          {editingDocId === doc.id ? (
+                            <input 
+                              autoFocus
+                              value={editingDocTitle}
+                              onChange={(e) => setEditingDocTitle(e.target.value)}
+                              onBlur={() => handleRenameDocSubmit(doc.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRenameDocSubmit(doc.id);
+                                if (e.key === 'Escape') setEditingDocId(null);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ flex: 1, border: '1px solid #ccc', borderRadius: '4px', padding: '2px 6px', fontSize: '13px', outline: 'none' }}
+                            />
+                          ) : (
+                            <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {doc.titre || 'Untitled'}
+                            </span>
+                          )}
+                          
+                          <div className="project-actions" onClick={e => e.stopPropagation()}>
+                            <MoreHorizontal 
+                              size={16} 
+                              className="menu-icon"
+                              onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
+                            />
+                            {activeMenuId === doc.id && (
+                              <div className="project-dropdown">
+                                <div className="dropdown-item" onClick={() => { setEditingDocTitle(doc.titre); setEditingDocId(doc.id); setActiveMenuId(null); }}>
+                                  Rename
+                                </div>
+                                <div className="dropdown-item" onClick={(e) => handleTogglePin(e, doc.id)}>
+                                  Unpin
+                                </div>
+                                <div className="dropdown-item delete" onClick={(e) => handleDelete(e, doc.id)}>
+                                  Delete
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  </div>
-                ))
+                  )}
+
+                  {documents.filter(d => !pinnedDocs[d.id]).length > 0 && (
+                    <div className="session-list-section">
+                      <div className="session-list-section__title" style={{ padding: '10px 20px', fontSize: '11px', color: '#888', fontWeight: 600 }}>RECENT</div>
+                      {documents.filter(d => !pinnedDocs[d.id]).map(doc => (
+                        <div 
+                          key={doc.id} 
+                          className="ws-item project-item" 
+                          onClick={() => { if (editingDocId !== doc.id) navigate(`/editor/${doc.id}`) }}
+                          onMouseLeave={() => setActiveMenuId(null)}
+                        >
+                          <FileText size={14} />
+                          {editingDocId === doc.id ? (
+                            <input 
+                              autoFocus
+                              value={editingDocTitle}
+                              onChange={(e) => setEditingDocTitle(e.target.value)}
+                              onBlur={() => handleRenameDocSubmit(doc.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRenameDocSubmit(doc.id);
+                                if (e.key === 'Escape') setEditingDocId(null);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ flex: 1, border: '1px solid #ccc', borderRadius: '4px', padding: '2px 6px', fontSize: '13px', outline: 'none' }}
+                            />
+                          ) : (
+                            <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {doc.titre || 'Untitled'}
+                            </span>
+                          )}
+                          
+                          <div className="project-actions" onClick={e => e.stopPropagation()}>
+                            <MoreHorizontal 
+                              size={16} 
+                              className="menu-icon"
+                              onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
+                            />
+                            {activeMenuId === doc.id && (
+                              <div className="project-dropdown">
+                                <div className="dropdown-item" onClick={() => { setEditingDocTitle(doc.titre); setEditingDocId(doc.id); setActiveMenuId(null); }}>
+                                  Rename
+                                </div>
+                                <div className="dropdown-item" onClick={(e) => handleTogglePin(e, doc.id)}>
+                                  Pin
+                                </div>
+                                <div className="dropdown-item delete" onClick={(e) => handleDelete(e, doc.id)}>
+                                  Delete
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -408,9 +532,25 @@ const EditorPage = () => {
                   {uploadedFiles.map(file => (
                     <div key={file.id} className="ws-item project-item" onMouseLeave={() => setActiveFileMenuId(null)}>
                       <FileText size={14} />
-                      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {file.nom_fichier}
-                      </span>
+                      {editingFileId === file.id ? (
+                        <input 
+                          autoFocus
+                          value={editingFileName}
+                          onChange={(e) => setEditingFileName(e.target.value)}
+                          onBlur={() => handleRenameFileSubmit(file.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameFileSubmit(file.id);
+                            if (e.key === 'Escape') setEditingFileId(null);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ flex: 1, border: '1px solid #ccc', borderRadius: '4px', padding: '2px 6px', fontSize: '13px', outline: 'none' }}
+                        />
+                      ) : (
+                        <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {file.nom_fichier}
+                        </span>
+                      )}
+                      
                       <div className="project-actions" onClick={e => e.stopPropagation()}>
                         <MoreHorizontal 
                           size={16} 
@@ -419,7 +559,7 @@ const EditorPage = () => {
                         />
                         {activeFileMenuId === file.id && (
                           <div className="project-dropdown" style={{ right: '-5px' }}>
-                            <div className="dropdown-item" onClick={(e) => handleFileRename(e, file.id, file.nom_fichier)}>
+                            <div className="dropdown-item" onClick={() => { setEditingFileName(file.nom_fichier); setEditingFileId(file.id); setActiveFileMenuId(null); }}>
                               Rename
                             </div>
                             <div className="dropdown-item delete" onClick={(e) => handleFileDelete(e, file.id)}>
@@ -498,10 +638,8 @@ const EditorPage = () => {
               <div className="editor-topbar-right">
                 <div className="assistant-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Settings size={16} />
                     <span>ASSISTANT</span>
                   </div>
-                  <MoreHorizontal size={16} cursor="pointer" />
                 </div>
               </div>
             </div>

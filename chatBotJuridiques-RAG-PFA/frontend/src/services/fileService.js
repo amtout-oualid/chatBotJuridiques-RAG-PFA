@@ -21,4 +21,7 @@ export const fileService = {
 
   /** DELETE /files/{id} — remove a file */
   deleteFile: (id) => api.delete(ENDPOINTS.FILE_BY_ID(id)),
+
+  /** PATCH /files/{id}/rename — rename a file */
+  renameFile: (id, newName) => api.patch(`${ENDPOINTS.FILE_BY_ID(id)}/rename`, { nouveau_nom: newName }),
 };

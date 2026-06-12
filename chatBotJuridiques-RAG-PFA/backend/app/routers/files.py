@@ -19,12 +19,32 @@ from app.schemas import (
     FileListResponse,
     FileResponse,
     FileSearchResponse,
+    FileRename,
     MessageOut,
 )
 from app.services import file_service
 
 router = APIRouter(prefix="/files", tags=["Files & DMS"])
 
+
+@router.patch(
+    "/{file_id}/rename",
+    response_model=MessageOut,
+    summary="Rename a file",
+)
+async def rename_file(
+    file_id: uuid.UUID,
+    data: FileRename,
+    clerk_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageOut:
+    renamed = await file_service.rename_file(db, file_id, clerk_id, data.nouveau_nom)
+    if not renamed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found or not owned by you.",
+        )
+    return MessageOut(message="File renamed successfully.")
 
 @router.get(
     "",

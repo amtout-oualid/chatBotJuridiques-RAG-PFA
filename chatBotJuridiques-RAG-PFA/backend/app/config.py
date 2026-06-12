@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     TOP_K_RERANK: int = 5
     OPENAI_API_KEY: str = ""
 
+    # ── Logging ──────────────────────────────────────────
+    LOG_LEVEL: str = "INFO"
+
     # ── CORS ─────────────────────────────────────────────
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
 

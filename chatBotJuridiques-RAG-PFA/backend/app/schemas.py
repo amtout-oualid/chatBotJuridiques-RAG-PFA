@@ -119,6 +119,9 @@ class FileResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class FileRename(BaseModel):
+    nouveau_nom: str
+
 
 class FileListResponse(BaseModel):
     """GET /files — list wrapper."""

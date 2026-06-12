@@ -2,6 +2,7 @@
 vector_store.py — Gestion de la base vectorielle ChromaDB
 Stocke et recherche les chunks de documents juridiques arabes
 """
+import time
 import uuid
 import logging
 from typing import List, Dict, Optional, Tuple
@@ -12,8 +13,7 @@ from chromadb.config import Settings as ChromaSettings
 
 from app.config import settings
 from app.core.embedding.embedder import embedder
-
-logger = logging.getLogger(__name__)
+from app.logger import chroma_logger
 
 
 class VectorStore:
@@ -23,17 +23,21 @@ class VectorStore:
     """
 
     def __init__(self):
-        self.client = chromadb.PersistentClient(
-            path=settings.CHROMA_PERSIST_DIR,
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
-        self.collection = self.client.get_or_create_collection(
-            name=settings.CHROMA_COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},  # Similarité cosine pour BGE-M3
-        )
-        logger.info(
-            f"ChromaDB initialisé: {self.collection.count()} chunks existants"
-        )
+        chroma_logger.info("Initializing ChromaDB VectorStore", extra={"persist_dir": settings.CHROMA_PERSIST_DIR})
+        try:
+            self.client = chromadb.PersistentClient(
+                path=settings.CHROMA_PERSIST_DIR,
+                settings=ChromaSettings(anonymized_telemetry=False),
+            )
+            self.collection_name = settings.CHROMA_COLLECTION_NAME
+            self.collection = self.client.get_or_create_collection(
+                name=self.collection_name,
+                metadata={"hnsw:space": "cosine"},  # Similarité cosine pour BGE-M3
+            )
+            chroma_logger.info(f"ChromaDB collection '{self.collection_name}' initialized", extra={"total_chunks": self.collection.count()})
+        except Exception as e:
+            chroma_logger.error(f"Failed to initialize ChromaDB collection: {e}", exc_info=True)
+            raise
 
     def add_chunks(
         self,
@@ -41,19 +45,11 @@ class VectorStore:
         document_id: str,
         collection_id: Optional[str] = None,
     ) -> int:
-        """
-        Ajoute des chunks dans ChromaDB.
-
-        Args:
-            chunks: Liste de {text, metadata} produits par ArabicChunker
-            document_id: ID unique du document parent
-
-        Returns:
-            Nombre de chunks ajoutés
-        """
         if not chunks:
+            chroma_logger.warning("Empty chunks list provided to add_chunks", extra={"document_id": document_id})
             return 0
 
+        start_time = time.perf_counter()
         ids = []
         documents = []
         embeddings = []
@@ -77,15 +73,24 @@ class VectorStore:
                 meta["collection_id"] = collection_id
             metadatas.append(meta)
 
-        self.collection.add(
-            ids=ids,
-            documents=documents,
-            embeddings=embeddings,
-            metadatas=metadatas,
-        )
-
-        logger.info(f"Ajout de {len(ids)} chunks pour document {document_id}")
-        return len(ids)
+        try:
+            self.collection.add(
+                ids=ids,
+                documents=documents,
+                embeddings=embeddings,
+                metadatas=metadatas,
+            )
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            chroma_logger.info("Added chunks into ChromaDB", extra={
+                "collection": self.collection_name,
+                "document_id": document_id,
+                "num_chunks": len(ids),
+                "duration_ms": round(duration_ms, 2)
+            })
+            return len(ids)
+        except Exception as e:
+            chroma_logger.error(f"Failed to add chunks into ChromaDB: {e}", extra={"document_id": document_id}, exc_info=True)
+            raise
 
     def search(
         self,
@@ -94,19 +99,8 @@ class VectorStore:
         document_id: Optional[str] = None,
         collection_id: Optional[str] = None,
     ) -> List[Dict]:
-        """
-        Recherche les chunks les plus similaires à une question.
-
-        Args:
-            query: Question de l'utilisateur
-            top_k: Nombre de résultats à retourner
-            document_id: Filtrer par document spécifique (optionnel)
-            collection_id: Filtrer par collection (optionnel)
-
-        Returns:
-            Liste de chunks avec scores de similarité
-        """
         top_k = top_k or settings.TOP_K_RETRIEVAL
+        start_time = time.perf_counter()
         query_embedding = embedder.embed_query(query)
 
         if document_id:
@@ -116,96 +110,124 @@ class VectorStore:
         else:
             where_filter = None
 
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=min(top_k, self.collection.count() or 1),
-            where=where_filter,
-            include=["documents", "metadatas", "distances"],
-        )
+        try:
+            results = self.collection.query(
+                query_embeddings=[query_embedding],
+                n_results=min(top_k, self.collection.count() or 1),
+                where=where_filter,
+                include=["documents", "metadatas", "distances"],
+            )
 
-        chunks = []
-        if results["documents"] and results["documents"][0]:
-            for doc, meta, dist in zip(
-                results["documents"][0],
-                results["metadatas"][0],
-                results["distances"][0],
-            ):
-                # Conversion distance cosine → score similarité (0-1)
-                score = 1 - dist
-                chunks.append({
-                    "text": doc,
-                    "metadata": meta,
-                    "score": round(score, 4),
-                })
+            chunks = []
+            if results["documents"] and results["documents"][0]:
+                for doc, meta, dist in zip(
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0],
+                ):
+                    score = 1 - dist
+                    chunks.append({
+                        "text": doc,
+                        "metadata": meta,
+                        "score": round(score, 4),
+                    })
 
-        return chunks
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            chroma_logger.info("ChromaDB vector search executed", extra={
+                "collection": self.collection_name,
+                "query": query,
+                "top_k": top_k,
+                "results_found": len(chunks),
+                "duration_ms": round(duration_ms, 2)
+            })
+            return chunks
+        except Exception as e:
+            chroma_logger.error(f"ChromaDB search failed: {e}", extra={"query": query}, exc_info=True)
+            return []
 
     def delete_document(self, document_id: str) -> int:
-        """
-        Supprime tous les chunks d'un document.
-
-        Returns:
-            Nombre de chunks supprimés
-        """
-        results = self.collection.get(
-            where={"document_id": document_id},
-            include=["documents"],
-        )
-        ids_to_delete = results["ids"]
-        if ids_to_delete:
-            self.collection.delete(ids=ids_to_delete)
-            logger.info(
-                f"Suppression de {len(ids_to_delete)} chunks pour document {document_id}"
+        start_time = time.perf_counter()
+        try:
+            results = self.collection.get(
+                where={"document_id": document_id},
+                include=["documents"],
             )
-        return len(ids_to_delete)
+            ids_to_delete = results["ids"]
+            if ids_to_delete:
+                self.collection.delete(ids=ids_to_delete)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                chroma_logger.info("Deleted document chunks from ChromaDB", extra={
+                    "collection": self.collection_name,
+                    "document_id": document_id,
+                    "chunks_deleted": len(ids_to_delete),
+                    "duration_ms": round(duration_ms, 2)
+                })
+            return len(ids_to_delete)
+        except Exception as e:
+            chroma_logger.error(f"Failed to delete document chunks from ChromaDB: {e}", extra={"document_id": document_id}, exc_info=True)
+            raise
 
     def delete_collection(self, collection_id: str) -> int:
-        """
-        Supprime tous les chunks appartenant à une collection.
-
-        Returns:
-            Nombre de chunks supprimés
-        """
-        results = self.collection.get(
-            where={"collection_id": collection_id},
-            include=["documents"],
-        )
-        ids_to_delete = results["ids"]
-        if ids_to_delete:
-            self.collection.delete(ids=ids_to_delete)
-            logger.info(
-                f"Suppression de {len(ids_to_delete)} chunks pour collection {collection_id}"
+        start_time = time.perf_counter()
+        try:
+            results = self.collection.get(
+                where={"collection_id": collection_id},
+                include=["documents"],
             )
-        return len(ids_to_delete)
+            ids_to_delete = results["ids"]
+            if ids_to_delete:
+                self.collection.delete(ids=ids_to_delete)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                chroma_logger.info("Deleted collection chunks from ChromaDB", extra={
+                    "collection": self.collection_name,
+                    "target_collection_id": collection_id,
+                    "chunks_deleted": len(ids_to_delete),
+                    "duration_ms": round(duration_ms, 2)
+                })
+            return len(ids_to_delete)
+        except Exception as e:
+            chroma_logger.error(f"Failed to delete collection chunks from ChromaDB: {e}", extra={"collection_id": collection_id}, exc_info=True)
+            raise
 
     def get_all_documents(self) -> List[Dict]:
-        """
-        Retourne la liste des documents uniques indexés.
-        """
-        results = self.collection.get(include=["metadatas"])
-        seen_ids = set()
-        documents = []
+        start_time = time.perf_counter()
+        try:
+            results = self.collection.get(include=["metadatas"])
+            seen_ids = set()
+            documents = []
 
-        for meta in results["metadatas"]:
-            doc_id = meta.get("document_id")
-            if doc_id and doc_id not in seen_ids:
-                seen_ids.add(doc_id)
-                documents.append({
-                    "document_id": doc_id,
-                    "filename": meta.get("document_name", ""),
-                    "indexed_at": meta.get("indexed_at", ""),
-                })
+            for meta in results["metadatas"]:
+                doc_id = meta.get("document_id")
+                if doc_id and doc_id not in seen_ids:
+                    seen_ids.add(doc_id)
+                    documents.append({
+                        "document_id": doc_id,
+                        "filename": meta.get("document_name", ""),
+                        "indexed_at": meta.get("indexed_at", ""),
+                    })
 
-        return documents
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            chroma_logger.info("Fetched all documents from ChromaDB", extra={"duration_ms": round(duration_ms, 2)})
+            return documents
+        except Exception as e:
+            chroma_logger.error(f"Failed to get all documents from ChromaDB: {e}", exc_info=True)
+            return []
 
     def count_chunks_for_document(self, document_id: str) -> int:
-        """Compte le nombre de chunks pour un document donné."""
-        results = self.collection.get(where={"document_id": document_id})
-        return len(results["ids"])
+        try:
+            results = self.collection.get(where={"document_id": document_id})
+            return len(results["ids"])
+        except Exception as e:
+            chroma_logger.error(f"Failed to count chunks for document: {e}", extra={"document_id": document_id}, exc_info=True)
+            return 0
 
     @property
     def total_chunks(self) -> int:
-        return self.collection.count()
+        try:
+            return self.collection.count()
+        except Exception as e:
+            chroma_logger.error(f"Failed to get total chunk count: {e}", exc_info=True)
+            return 0
 
 
 # Instance globale

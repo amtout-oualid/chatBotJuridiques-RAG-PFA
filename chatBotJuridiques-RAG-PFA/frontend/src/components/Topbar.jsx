@@ -3,8 +3,16 @@ import '../styles/app-shell.css';
 
 const Box = 'div';
 
-export default function Topbar() {
+export default function Topbar({ actionText = 'NEW DOCUMENT', onAction }) {
   const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (onAction) {
+      onAction();
+    } else {
+      navigate('/editor');
+    }
+  };
 
   return (
     <Box className="topbar">
@@ -13,8 +21,8 @@ export default function Topbar() {
         <span className="brand-name">VELLUM LAW</span>
       </Box>
       <Box className="topbar-right">
-        <button type="button" className="btn-dark" onClick={() => navigate('/editor')}>
-          NEW DOCUMENT
+        <button type="button" className="btn-dark" onClick={handleClick}>
+          {actionText}
         </button>
       </Box>
     </Box>

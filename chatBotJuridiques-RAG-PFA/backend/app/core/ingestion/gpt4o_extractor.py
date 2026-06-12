@@ -3,7 +3,7 @@ gpt4o_extractor.py — Extraction du texte arabe depuis les images PDF via GPT-4
 PAYANT : ~$0.01 par page (mode high detail)
 """
 import base64
-import logging
+import time
 from typing import List, Tuple
 from PIL import Image
 from openai import OpenAI
@@ -11,8 +11,7 @@ from openai import OpenAI
 from app.config import settings
 from app.core.ingestion.extractor import PDFExtractor
 from app.core.ingestion.ocr_cache import get_cached_pages, save_to_cache
-
-logger = logging.getLogger(__name__)
+from app.logger import rag_logger
 
 # Prompt système spécialisé pour les documents juridiques arabes
 SYSTEM_PROMPT = """أنت محلل متخصص في استخراج النصوص من الوثائق القانونية المغربية والعربية.
@@ -45,9 +44,9 @@ class GPT4oExtractor:
 
     @property
     def client(self):
-        """Crée le client OpenAI seulement quand nécessaire."""
         if self._client is None:
             if not settings.OPENAI_API_KEY:
+                rag_logger.error("OPENAI_API_KEY missing for GPT-4o OCR extraction")
                 raise ValueError(
                     "OPENAI_API_KEY non configurée. Ajoutez votre clé dans backend/.env "
                     "pour traiter les PDFs scannés. Les PDFs textuels fonctionnent sans clé."
@@ -56,7 +55,6 @@ class GPT4oExtractor:
         return self._client
 
     def _encode_image_base64(self, img: Image.Image) -> str:
-        """Encode une image PIL en base64 string pour l'API OpenAI."""
         import io
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
@@ -65,17 +63,8 @@ class GPT4oExtractor:
     def extract_text_from_image(
         self, img: Image.Image, page_number: int
     ) -> str:
-        """
-        Envoie une image de page PDF à GPT-4o Vision et retourne le texte extrait.
-
-        Args:
-            img: Image PIL de la page
-            page_number: Numéro de la page (pour les logs)
-
-        Returns:
-            Texte arabe extrait de la page
-        """
-        logger.info(f"GPT-4o Vision: traitement page {page_number}")
+        start_time = time.perf_counter()
+        rag_logger.debug("Starting GPT-4o Vision OCR on page", extra={"page_number": page_number})
         try:
             image_b64 = self._encode_image_base64(img)
 
@@ -102,38 +91,29 @@ class GPT4oExtractor:
             )
 
             extracted = response.choices[0].message.content or ""
-            logger.info(
-                f"Page {page_number}: {len(extracted)} caractères extraits"
-            )
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            rag_logger.info("GPT-4o Vision OCR complete for page", extra={
+                "page_number": page_number, 
+                "chars_extracted": len(extracted),
+                "duration_ms": round(duration_ms, 2)
+            })
             return extracted.strip()
 
         except Exception as e:
-            logger.error(f"Erreur GPT-4o Vision page {page_number}: {e}")
+            rag_logger.error(f"GPT-4o Vision OCR error on page {page_number}: {e}", exc_info=True)
             raise
 
     def extract_all_pages(
         self, pdf_path: str
     ) -> List[Tuple[int, str]]:
-        """
-        Extrait le texte de toutes les pages d'un PDF.
-        Vérifie d'abord le cache local avant d'appeler GPT-4o (payant).
-
-        Args:
-            pdf_path: Chemin vers le fichier PDF
-
-        Returns:
-            Liste de tuples (numéro_page, texte_extrait)
-        """
-        # ----------------------------------------------------------------
-        # Vérification du cache — évite de payer GPT-4o pour un doublon
-        # ----------------------------------------------------------------
         cached = get_cached_pages(pdf_path)
         if cached is not None:
+            rag_logger.info("Using cached OCR results for PDF", extra={"pdf_path": pdf_path, "pages": len(cached)})
             return cached
 
-        logger.info(f"Début extraction GPT-4o: {pdf_path}")
+        start_time = time.perf_counter()
+        rag_logger.info("Starting GPT-4o full document OCR extraction", extra={"pdf_path": pdf_path})
 
-        # Conversion PDF → images
         page_images = self.pdf_extractor.convert_to_images(pdf_path)
 
         results: List[Tuple[int, str]] = []
@@ -143,16 +123,17 @@ class GPT4oExtractor:
                 if text:  # On garde seulement les pages avec du contenu
                     results.append((page_num, text))
             except Exception as e:
-                logger.warning(f"Page {page_num} ignorée suite à erreur: {e}")
+                rag_logger.warning(f"Page {page_num} ignorée suite à erreur: {e}")
                 continue
 
-        logger.info(
-            f"Extraction terminée: {len(results)}/{len(page_images)} pages traitées"
-        )
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        rag_logger.info("GPT-4o full document OCR extraction complete", extra={
+            "pdf_path": pdf_path,
+            "pages_processed": len(results),
+            "total_pages": len(page_images),
+            "duration_ms": round(duration_ms, 2)
+        })
 
-        # ----------------------------------------------------------------
-        # Sauvegarde dans le cache pour les prochaines insertions
-        # ----------------------------------------------------------------
         if results:
             save_to_cache(pdf_path, results)
 

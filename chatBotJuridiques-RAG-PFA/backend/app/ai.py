@@ -45,8 +45,11 @@ SYSTEM_PROMPT = (
 
 import time
 
+from app.logger import rag_logger
+
 def _sync_generate(client: genai.Client, user_input: str, media_parts: list = None) -> str:
     """Synchronous Gemini call — runs inside a thread pool with retry logic."""
+    start_time = time.perf_counter()
     parts = [types.Part.from_text(text=f"{SYSTEM_PROMPT}\n\n{user_input}")]
     
     if media_parts:
@@ -61,10 +64,15 @@ def _sync_generate(client: genai.Client, user_input: str, media_parts: list = No
                     )
                 )
 
+    rag_logger.debug("Generating content with Gemini API", extra={"media_parts_count": len(media_parts) if media_parts else 0})
+    
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=[types.Content(role="user", parts=parts)],
     )
+    
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    rag_logger.info("Gemini API generated content successfully", extra={"duration_ms": round(duration_ms, 2)})
     return response.text or "Désolé, je n'ai pas pu générer de réponse."
 
 
@@ -84,4 +92,5 @@ async def call_legal_ai(user_input: str, media_parts: list = None) -> str:
         return result
 
     except Exception as exc:
+        rag_logger.error(f"Error communicating with Gemini AI: {exc}", exc_info=True)
         return f"Erreur lors de la communication avec l'IA : {str(exc)}"

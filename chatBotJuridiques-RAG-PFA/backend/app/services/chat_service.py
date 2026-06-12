@@ -14,6 +14,7 @@ from app.ai import call_legal_ai
 from app.models import MessageIA, SessionIA
 from app.schemas import ChatSessionCreate, ChatSessionUpdate, MessageCreate
 from app.services import file_service
+from app.logger import app_logger
 
 
 # ─────────────────────────────────────────────────────────
@@ -25,13 +26,6 @@ async def create_session(
     clerk_id: str,
     data: ChatSessionCreate,
 ) -> SessionIA:
-    """
-    Create a new AI chat session. Returns the new UUID.
-
-    Maps to:
-        INSERT INTO sessions_ia (utilisateur_id, titre)
-        VALUES (:clerk_id, :titre) RETURNING id;
-    """
     session = SessionIA(
         utilisateur_id=clerk_id,
         titre=data.titre or "Nouvelle Discussion",
@@ -39,6 +33,7 @@ async def create_session(
     db.add(session)
     await db.commit()
     await db.refresh(session)
+    app_logger.info("Created new chat session", extra={"session_id": str(session.id), "user_id": clerk_id})
     return session
 
 
@@ -46,15 +41,6 @@ async def get_user_sessions(
     db: AsyncSession,
     clerk_id: str,
 ) -> List[SessionIA]:
-    """
-    Fetch all active sessions for the sidebar history.
-
-    Maps to:
-        SELECT id, titre, epingle, date_modif
-        FROM sessions_ia
-        WHERE utilisateur_id = :clerk_id AND is_deleted = FALSE
-        ORDER BY epingle DESC, date_modif DESC;
-    """
     result = await db.execute(
         select(SessionIA)
         .where(
@@ -63,7 +49,9 @@ async def get_user_sessions(
         )
         .order_by(SessionIA.epingle.desc(), SessionIA.date_modif.desc())
     )
-    return list(result.scalars().all())
+    sessions = list(result.scalars().all())
+    app_logger.debug("Fetched user chat sessions", extra={"user_id": clerk_id, "count": len(sessions)})
+    return sessions
 
 
 async def search_sessions(
@@ -71,10 +59,6 @@ async def search_sessions(
     clerk_id: str,
     query: str,
 ) -> List[SessionIA]:
-    """
-    Search sessions where the keyword appears in the title or any message body.
-    Case-insensitive (ilike). Returns distinct sessions, newest activity first.
-    """
     pattern = f"%{query.strip()}%"
     result = await db.execute(
         select(SessionIA)
@@ -90,7 +74,9 @@ async def search_sessions(
         )
         .order_by(SessionIA.epingle.desc(), SessionIA.date_modif.desc())
     )
-    return list(result.scalars().all())
+    sessions = list(result.scalars().all())
+    app_logger.info("Searched user chat sessions", extra={"user_id": clerk_id, "query": query, "count": len(sessions)})
+    return sessions
 
 
 async def get_session_by_id(
@@ -98,12 +84,6 @@ async def get_session_by_id(
     session_id: uuid.UUID,
     clerk_id: str,
 ) -> Optional[SessionIA]:
-    """
-    Fetch a single session, enforcing ownership via clerk_id.
-
-    Maps to:
-        SELECT * FROM sessions_ia WHERE id = :session_id AND is_deleted = FALSE;
-    """
     result = await db.execute(
         select(SessionIA).where(
             SessionIA.id == session_id,
@@ -111,7 +91,12 @@ async def get_session_by_id(
             SessionIA.is_deleted == False,
         )
     )
-    return result.scalars().first()
+    session = result.scalars().first()
+    if session:
+        app_logger.debug("Fetched chat session by ID", extra={"session_id": str(session_id), "user_id": clerk_id})
+    else:
+        app_logger.warning("Chat session not found or unauthorized access attempt", extra={"session_id": str(session_id), "user_id": clerk_id})
+    return session
 
 
 async def get_session_messages(
@@ -120,16 +105,6 @@ async def get_session_messages(
     limit: int = 50,
     offset: int = 0,
 ) -> List[MessageIA]:
-    """
-    Fetch all messages for a session, ordered chronologically.
-
-    Maps to:
-        SELECT id, auteur, contenu, sources_rag, date_creation
-        FROM messages_ia
-        WHERE session_id = :session_id
-        ORDER BY date_creation ASC
-        LIMIT :limit OFFSET :offset;
-    """
     result = await db.execute(
         select(MessageIA)
         .where(MessageIA.session_id == session_id)
@@ -137,7 +112,9 @@ async def get_session_messages(
         .limit(limit)
         .offset(offset)
     )
-    return list(result.scalars().all())
+    messages = list(result.scalars().all())
+    app_logger.debug("Fetched session messages", extra={"session_id": str(session_id), "count": len(messages)})
+    return messages
 
 
 async def send_message(
@@ -146,13 +123,11 @@ async def send_message(
     clerk_id: str,
     data: MessageCreate,
 ) -> dict:
-    """
-    Send a user message, call the AI, and persist both messages.
-    Routes to RAG for general questions, or bypasses RAG for live file context.
-    """
     from app.core.retrieval.vector_store import vector_store
     from app.core.retrieval.reranker import reranker
 
+    app_logger.info("Sending message to chat session", extra={"session_id": str(session_id), "user_id": clerk_id, "has_file": bool(data.file_id)})
+    
     # 1. Insert user message
     user_msg = MessageIA(
         session_id=session_id,
@@ -160,15 +135,17 @@ async def send_message(
         contenu=data.contenu,
     )
     db.add(user_msg)
-    await db.flush()  # get the ID without committing
+    await db.flush()
 
     # 2. Build prompt (Routing Logic)
     sources_rag = None
     media_parts = None
     if data.file_id:
-        # ROUTE 1: User Upload Bypass (Multimodal Direct File Context)
+        # ROUTE 1: User Upload Bypass
+        app_logger.info("Chat message using live file bypass (Path B)", extra={"file_id": str(data.file_id)})
         file_record = await file_service.get_file_by_id(db, data.file_id, clerk_id)
         if not file_record:
+            app_logger.error("File not found or not owned by user during chat bypass", extra={"file_id": str(data.file_id), "user_id": clerk_id})
             raise ValueError("File not found or not owned by you.")
         
         media_parts = await file_service.get_multimodal_parts(file_record)
@@ -182,13 +159,11 @@ async def send_message(
             "nom_fichier": file_record.nom_fichier,
         }
     else:
-        # ROUTE 2: Static RAG Pipeline (General Legal Knowledge)
-        # Search Vector DB
+        # ROUTE 2: Static RAG Pipeline
+        app_logger.info("Chat message using static RAG pipeline (Path A)")
         chunks = vector_store.search(data.contenu, top_k=20)
-        # Rerank Results
         reranked_chunks = reranker.rerank(data.contenu, chunks, top_k=5)
         
-        # Format Context
         context_parts = []
         for i, chunk in enumerate(reranked_chunks, 1):
             meta = chunk.get("metadata", {})
@@ -210,7 +185,7 @@ async def send_message(
         )
         sources_rag = {"chunks_retrieved": len(reranked_chunks)}
 
-    # Call Gemini (Shared API for both routes)
+    # Call Gemini
     ai_response_text = await call_legal_ai(prompt, media_parts=media_parts)
 
     # 3. Insert AI message
@@ -222,17 +197,18 @@ async def send_message(
     )
     db.add(ai_msg)
 
-    # 4. Touch session to trigger date_modif update
+    # 4. Touch session
     await db.execute(
         update(SessionIA)
         .where(SessionIA.id == session_id)
-        .values(titre=SessionIA.titre)  # no-op update to fire trigger
+        .values(titre=SessionIA.titre)
     )
 
     await db.commit()
     await db.refresh(user_msg)
     await db.refresh(ai_msg)
 
+    app_logger.info("Message sent successfully and AI response received", extra={"session_id": str(session_id)})
     return {"user_message": user_msg, "ai_message": ai_msg}
 
 
@@ -242,13 +218,6 @@ async def update_session(
     clerk_id: str,
     data: ChatSessionUpdate,
 ) -> Optional[SessionIA]:
-    """
-    Update session metadata (title / pin status).
-
-    Maps to:
-        UPDATE sessions_ia SET titre = :new_titre WHERE id = :session_id;
-        UPDATE sessions_ia SET epingle = :pin_status WHERE id = :session_id;
-    """
     session = await get_session_by_id(db, session_id, clerk_id)
     if not session:
         return None
@@ -259,6 +228,7 @@ async def update_session(
 
     await db.commit()
     await db.refresh(session)
+    app_logger.info("Updated chat session metadata", extra={"session_id": str(session_id), "fields": list(update_data.keys())})
     return session
 
 
@@ -267,16 +237,11 @@ async def delete_session(
     session_id: uuid.UUID,
     clerk_id: str,
 ) -> bool:
-    """
-    Soft-delete a session (is_deleted = TRUE).
-
-    Maps to:
-        UPDATE sessions_ia SET is_deleted = TRUE WHERE id = :session_id;
-    """
     session = await get_session_by_id(db, session_id, clerk_id)
     if not session:
         return False
 
     session.is_deleted = True
     await db.commit()
+    app_logger.info("Soft-deleted chat session", extra={"session_id": str(session_id), "user_id": clerk_id})
     return True

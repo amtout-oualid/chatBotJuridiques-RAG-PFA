@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.ai import call_legal_ai
 from app.models import DocumentGenere, ModeleJuridique, FichierUtilisateur
+from app.logger import app_logger
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
@@ -29,21 +30,14 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 # ─────────────────────────────────────────────────────────
 
 async def get_templates(db: AsyncSession) -> List[ModeleJuridique]:
-    """
-    Fetch all active templates (metadata only).
-
-    Maps to:
-        SELECT id, nom, description, categorie
-        FROM modeles_juridiques
-        WHERE actif = TRUE
-        ORDER BY categorie, nom;
-    """
     result = await db.execute(
         select(ModeleJuridique)
         .where(ModeleJuridique.actif == True)
         .order_by(ModeleJuridique.categorie, ModeleJuridique.nom)
     )
-    return list(result.scalars().all())
+    templates = list(result.scalars().all())
+    app_logger.debug("Fetched active templates", extra={"count": len(templates)})
+    return templates
 
 
 # ─────────────────────────────────────────────────────────
@@ -54,15 +48,6 @@ async def get_user_documents(
     db: AsyncSession,
     clerk_id: str,
 ) -> List[DocumentGenere]:
-    """
-    Fetch all active documents for a user (dashboard view).
-
-    Maps to:
-        SELECT id, titre, statut, date_modif
-        FROM documents_generes
-        WHERE utilisateur_id = :clerk_id AND is_deleted = FALSE
-        ORDER BY date_modif DESC;
-    """
     result = await db.execute(
         select(DocumentGenere)
         .where(
@@ -71,7 +56,9 @@ async def get_user_documents(
         )
         .order_by(DocumentGenere.date_modif.desc())
     )
-    return list(result.scalars().all())
+    docs = list(result.scalars().all())
+    app_logger.debug("Fetched user documents", extra={"user_id": clerk_id, "count": len(docs)})
+    return docs
 
 
 async def get_document_detail(
@@ -79,14 +66,6 @@ async def get_document_detail(
     document_id: uuid.UUID,
     clerk_id: str,
 ) -> Optional[DocumentGenere]:
-    """
-    Fetch full document content for the LaTeX editor.
-
-    Maps to:
-        SELECT latex_contenu, pdf_url, statut
-        FROM documents_generes
-        WHERE id = :document_id AND is_deleted = FALSE;
-    """
     result = await db.execute(
         select(DocumentGenere).where(
             DocumentGenere.id == document_id,
@@ -94,7 +73,12 @@ async def get_document_detail(
             DocumentGenere.is_deleted == False,
         )
     )
-    return result.scalars().first()
+    doc = result.scalars().first()
+    if doc:
+        app_logger.debug("Fetched document details", extra={"document_id": str(document_id)})
+    else:
+        app_logger.warning("Document not found or unauthorized access attempt", extra={"document_id": str(document_id), "user_id": clerk_id})
+    return doc
 
 
 async def create_document(
@@ -104,14 +88,6 @@ async def create_document(
     latex_contenu: Optional[str] = "",
     modele_id: Optional[uuid.UUID] = None,
 ) -> DocumentGenere:
-    """
-    Create a new generated document.
-
-    Maps to:
-        INSERT INTO documents_generes (utilisateur_id, modele_id, titre, latex_contenu)
-        VALUES (:clerk_id, :template_id, :titre, :latex_contenu)
-        RETURNING id;
-    """
     doc = DocumentGenere(
         utilisateur_id=clerk_id,
         modele_id=modele_id,
@@ -121,6 +97,7 @@ async def create_document(
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
+    app_logger.info("Created new document", extra={"document_id": str(doc.id), "user_id": clerk_id})
     return doc
 
 
@@ -132,14 +109,6 @@ async def update_document(
     latex_contenu: Optional[str] = None,
     statut: Optional[str] = None,
 ) -> Optional[DocumentGenere]:
-    """
-    Auto-save / update document content.
-
-    Maps to:
-        UPDATE documents_generes
-        SET latex_contenu = :new_content
-        WHERE id = :document_id;
-    """
     doc = await get_document_detail(db, document_id, clerk_id)
     if not doc:
         return None
@@ -153,6 +122,7 @@ async def update_document(
 
     await db.commit()
     await db.refresh(doc)
+    app_logger.info("Updated document", extra={"document_id": str(document_id)})
     return doc
 
 
@@ -161,18 +131,13 @@ async def delete_document(
     document_id: uuid.UUID,
     clerk_id: str,
 ) -> bool:
-    """
-    Soft-delete a document (is_deleted = TRUE).
-
-    Maps to:
-        UPDATE documents_generes SET is_deleted = TRUE WHERE id = :document_id;
-    """
     doc = await get_document_detail(db, document_id, clerk_id)
     if not doc:
         return False
 
     doc.is_deleted = True
     await db.commit()
+    app_logger.info("Soft-deleted document", extra={"document_id": str(document_id), "user_id": clerk_id})
     return True
 
 # ─────────────────────────────────────────────────────────
@@ -186,7 +151,9 @@ async def get_project_files(db: AsyncSession, document_id: uuid.UUID, clerk_id: 
             FichierUtilisateur.utilisateur_id == clerk_id
         ).order_by(FichierUtilisateur.date_creation.asc())
     )
-    return list(result.scalars().all())
+    files = list(result.scalars().all())
+    app_logger.debug("Fetched project files", extra={"document_id": str(document_id), "count": len(files)})
+    return files
 
 async def upload_project_file(
     db: AsyncSession,
@@ -215,6 +182,7 @@ async def upload_project_file(
     db.add(file_record)
     await db.commit()
     await db.refresh(file_record)
+    app_logger.info("Uploaded project file", extra={"document_id": str(document_id), "file_id": str(file_record.id), "filename": filename})
     return file_record
 
 async def rename_project_file(
@@ -229,10 +197,12 @@ async def rename_project_file(
     )
     file_record = result.scalars().first()
     if not file_record:
+        app_logger.warning("Project file not found for renaming", extra={"file_id": str(file_id)})
         return None
     file_record.nom_fichier = new_name
     await db.commit()
     await db.refresh(file_record)
+    app_logger.info("Renamed project file", extra={"file_id": str(file_id), "new_name": new_name})
     return file_record
 
 async def delete_project_file(
@@ -247,11 +217,13 @@ async def delete_project_file(
     )
     file_record = result.scalars().first()
     if not file_record:
+        app_logger.warning("Project file not found for deletion", extra={"file_id": str(file_id)})
         return False
     if os.path.exists(file_record.url_stockage):
         os.remove(file_record.url_stockage)
     await db.delete(file_record)
     await db.commit()
+    app_logger.info("Deleted project file", extra={"file_id": str(file_id)})
     return True
 
 # ─────────────────────────────────────────────────────────
@@ -263,16 +235,6 @@ _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".eps", ".
 
 
 def _sanitize_latex_for_api(latex_code: str) -> str:
-    """
-    Rewrite LaTeX commands that trigger the LaTeXLite API's security filter.
-
-    The API blocks any command starting with ``\\include`` (intended to block
-    ``\\include`` and ``\\input``), but this also false-positives on the
-    perfectly safe ``\\includegraphics``.  We rewrite it using TeX's
-    ``\\csname … \\endcsname`` primitive, which constructs the same control
-    sequence at expansion time without the literal ``\\include`` substring
-    appearing in the source.
-    """
     return latex_code.replace(
         r"\includegraphics", r"\csname includegraphics\endcsname"
     )
@@ -284,23 +246,15 @@ _pdflatex_cache: str | None = ...  # sentinel: ... means "not yet searched"
 
 
 def _find_pdflatex() -> str | None:
-    """
-    Locate ``pdflatex`` on this machine.
-
-    Checks the system PATH first, then probes common install directories
-    for MiKTeX and TeX Live on Windows.  The result is cached if found.
-    """
     global _pdflatex_cache
     if _pdflatex_cache is not ... and _pdflatex_cache is not None:
         return _pdflatex_cache
 
-    # 1. Try PATH
     found = shutil.which("pdflatex")
     if found:
         _pdflatex_cache = found
         return found
 
-    # 2. Probe common Windows install locations
     if _sys.platform == "win32":
         home = os.environ.get("LOCALAPPDATA", "")
         candidates = [
@@ -308,7 +262,6 @@ def _find_pdflatex() -> str | None:
             os.path.join(home, "Programs", "MiKTeX", "miktex", "bin", "pdflatex.exe"),
             r"C:\Program Files\MiKTeX\miktex\bin\x64\pdflatex.exe",
             r"C:\Program Files (x86)\MiKTeX\miktex\bin\x64\pdflatex.exe",
-            # TeX Live
             r"C:\texlive\2024\bin\windows\pdflatex.exe",
             r"C:\texlive\2025\bin\windows\pdflatex.exe",
             r"C:\texlive\2026\bin\windows\pdflatex.exe",
@@ -326,28 +279,18 @@ async def _compile_locally(
     latex_code: str,
     project_files: List[FichierUtilisateur] = None,
 ) -> dict | None:
-    """
-    Compile LaTeX locally using ``pdflatex``.
-
-    Creates a temporary directory, writes ``main.tex`` plus all project
-    asset files, runs ``pdflatex`` twice (for cross-references), then
-    reads the resulting PDF.
-
-    Returns a standard result dict, or **None** if ``pdflatex`` is not
-    installed on the system.
-    """
     pdflatex = _find_pdflatex()
     if not pdflatex:
-        return None  # signal caller to use a different path
+        app_logger.warning("Local pdflatex not found on system")
+        return None
 
+    app_logger.info("Starting local pdflatex compilation")
     tmpdir = tempfile.mkdtemp(prefix="latex_local_")
     try:
-        # ── Write main.tex ──────────────────────────────────────────
         tex_path = os.path.join(tmpdir, "main.tex")
         with open(tex_path, "w", encoding="utf-8") as f:
             f.write(latex_code)
 
-        # ── Copy project assets alongside main.tex ──────────────────
         if project_files:
             for pf in project_files:
                 if not os.path.exists(pf.url_stockage):
@@ -355,7 +298,6 @@ async def _compile_locally(
                 dest = os.path.join(tmpdir, pf.nom_fichier)
                 shutil.copy2(pf.url_stockage, dest)
 
-        # ── Run pdflatex (twice for cross-refs) ─────────────────────
         import subprocess
         for _pass in range(2):
             proc = await asyncio.to_thread(
@@ -367,12 +309,12 @@ async def _compile_locally(
             )
             stdout = proc.stdout
 
-        # ── Read result ─────────────────────────────────────────────
         pdf_path = os.path.join(tmpdir, "main.pdf")
         if os.path.exists(pdf_path):
             with open(pdf_path, "rb") as f:
                 pdf_bytes = f.read()
             pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            app_logger.info("Local pdflatex compilation successful")
             return {
                 "success": True,
                 "pdf_url": None,
@@ -381,8 +323,8 @@ async def _compile_locally(
                 "log_output": None,
             }
 
-        # Compilation ran but produced no PDF — return the log
         log = stdout.decode("utf-8", errors="replace") if stdout else ""
+        app_logger.error("Local pdflatex compilation failed")
         return {
             "success": False,
             "pdf_url": None,
@@ -392,6 +334,7 @@ async def _compile_locally(
         }
 
     except subprocess.TimeoutExpired:
+        app_logger.error("Local pdflatex compilation timed out")
         return {
             "success": False,
             "pdf_url": None,
@@ -400,9 +343,7 @@ async def _compile_locally(
             "log_output": None,
         }
     except Exception as e:
-        # Any unexpected error → return None so caller falls back to API
-        import traceback
-        traceback.print_exc()
+        app_logger.error(f"Unexpected error during local compilation: {e}", exc_info=True)
         return None
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -412,23 +353,6 @@ async def compile_latex(
     latex_code: str,
     project_files: List[FichierUtilisateur] = None,
 ) -> dict:
-    """
-    Compile LaTeX code to PDF.
-
-    Strategy:
-      1. If the project contains image assets → try **local** ``pdflatex``
-         first (the only way images can be resolved).
-      2. If local compilation is unavailable or there are no images →
-         use the **LaTeXLite cloud API**.
-      3. If images are present but pdflatex is missing → return a helpful
-         error telling the user to install a TeX distribution.
-
-    Returns {"success": bool, "pdf_url": str | None,
-             "pdf_base64": str | None, "errors": str | None,
-             "log_output": str | None}.
-    """
-
-    # ── Detect whether the project uses images ──────────────────────
     has_images = False
     if project_files:
         has_images = any(
@@ -436,12 +360,11 @@ async def compile_latex(
             for pf in project_files
         )
 
-    # ── Path A: local compilation (required for images) ─────────────
     if has_images:
+        app_logger.info("Images detected in project, attempting local compilation")
         local_result = await _compile_locally(latex_code, project_files)
         if local_result is not None:
             return local_result
-        # pdflatex not found — give a clear, actionable error
         return {
             "success": False,
             "pdf_url": None,
@@ -458,11 +381,12 @@ async def compile_latex(
             "log_output": None,
         }
 
-    # ── Path B: cloud API (text-only documents) ─────────────────────
+    app_logger.info("Using LaTeXLite cloud API for compilation")
     settings = get_settings()
     api_key = settings.LATEXLITE_API_KEY or os.environ.get("LATEXLITE_API_KEY")
 
     if not api_key:
+        app_logger.warning("LaTeXLite API key is missing")
         return {
             "success": False,
             "pdf_url": None,
@@ -472,7 +396,6 @@ async def compile_latex(
         }
 
     try:
-        # Rewrite \includegraphics to bypass API's \include security filter
         latex_code = _sanitize_latex_for_api(latex_code)
 
         files_payload = [
@@ -489,13 +412,13 @@ async def compile_latex(
                 files=files_payload,
             )
 
-        # ── Success (200 = clean, 201 = watermarked) ────────────────
         if resp.status_code in (200, 201):
             try:
                 json_resp = resp.json()
                 pdf_b64 = json_resp.get("data", {}).get("pdf_base64")
             except Exception:
                 pdf_b64 = base64.b64encode(resp.content).decode("utf-8")
+                app_logger.info("Cloud compilation successful (raw PDF bytes returned)")
                 return {
                     "success": True,
                     "pdf_url": None,
@@ -509,6 +432,7 @@ async def compile_latex(
                 if resp.status_code == 201:
                     wm = json_resp.get("data", {}).get("watermark", {})
                     warning = wm.get("message", "PDF includes an evaluation watermark.")
+                app_logger.info("Cloud compilation successful (JSON response returned)")
                 return {
                     "success": True,
                     "pdf_url": None,
@@ -526,13 +450,13 @@ async def compile_latex(
                 "log_output": None,
             }
 
-        # ── Error responses ─────────────────────────────────────────
         try:
             error_data = resp.json()
             error_msg = error_data.get("error", {}).get("message", resp.text)
         except Exception:
             error_msg = resp.text
 
+        app_logger.error(f"LaTeXLite API Error: {resp.status_code} - {error_msg}")
         return {
             "success": False,
             "pdf_url": None,
@@ -542,6 +466,7 @@ async def compile_latex(
         }
 
     except httpx.TimeoutException:
+        app_logger.error("LaTeXLite API timeout")
         return {
             "success": False,
             "pdf_url": None,
@@ -550,8 +475,7 @@ async def compile_latex(
             "log_output": None,
         }
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        app_logger.error(f"Unexpected backend error during cloud compilation: {e}", exc_info=True)
         return {
             "success": False,
             "pdf_url": None,
@@ -567,14 +491,13 @@ async def compile_latex(
 # ─────────────────────────────────────────────────────────
 
 async def ai_suggest(latex_code: str, prompt: str, project_files: List[FichierUtilisateur] = None) -> str:
-    """
-    Send LaTeX code + user prompt + project files to the AI and return the suggested code.
-    If the prompt contains '/template', it searches the JSON registry for a match and adapts it.
-    """
     import json
     
+    app_logger.info("Initiating AI suggestion for LaTeX code")
+
     # ── Path A: Slash Command (/template) Interceptor ────────────────
     if "/template" in prompt.lower():
+        app_logger.info("Slash command /template detected in user prompt")
         registry_path = os.path.join(os.path.dirname(__file__), "..", "templates_registry.json")
         if os.path.exists(registry_path):
             try:
@@ -596,11 +519,15 @@ async def ai_suggest(latex_code: str, prompt: str, project_files: List[FichierUt
                 )
                 return await call_legal_ai(system_prompt)
             except Exception as e:
+                app_logger.error(f"Failed to process JSON template registry: {e}", exc_info=True)
                 pass # Fallback to standard behavior if JSON parsing fails
+        else:
+            app_logger.warning("templates_registry.json not found")
 
     # ── Path B: Standard AI Modification ─────────────────────────────
     files_context = ""
     if project_files:
+        app_logger.debug("Appending project files to context", extra={"count": len(project_files)})
         for pf in project_files:
             ext = os.path.splitext(pf.nom_fichier)[1].lower()
             if ext in {".txt", ".md", ".tex", ".csv", ".json", ".html", ".xml"}:

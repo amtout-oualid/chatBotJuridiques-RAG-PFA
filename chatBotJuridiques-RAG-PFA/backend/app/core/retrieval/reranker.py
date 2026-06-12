@@ -2,18 +2,17 @@
 reranker.py — Re-classement des résultats avec BGE-Reranker-v2-M3 (Gratuit)
 Améliore significativement la précision de la recherche juridique arabe
 """
-import logging
+import time
 from typing import List, Dict
 
 from app.config import settings
-
-logger = logging.getLogger(__name__)
+from app.logger import rag_logger
 
 try:
     from FlagEmbedding import FlagReranker
     RERANKER_AVAILABLE = True
 except ImportError:
-    logger.warning("FlagEmbedding non disponible. pip install FlagEmbedding")
+    rag_logger.warning("FlagEmbedding non disponible. pip install FlagEmbedding")
     RERANKER_AVAILABLE = False
 
 
@@ -37,12 +36,12 @@ class BGEReranker:
         """Charge le reranker (appelé une fois au démarrage)."""
         if self._reranker is not None or not RERANKER_AVAILABLE:
             return
-        logger.info("Chargement du BGE-Reranker-v2-M3...")
+        rag_logger.info("Chargement du BGE-Reranker-v2-M3...")
         self._reranker = FlagReranker(
             "BAAI/bge-reranker-v2-m3",
             use_fp16=False,  # Désactivé pour éviter les crashs CPU sur Windows
         )
-        logger.info("BGE-Reranker chargé")
+        rag_logger.info("BGE-Reranker chargé")
 
     def rerank(
         self,
@@ -68,10 +67,11 @@ class BGEReranker:
 
         if not RERANKER_AVAILABLE or self._reranker is None:
             # Fallback : retourner les résultats triés par score ChromaDB
-            logger.warning("Reranker non disponible, fallback sur score ChromaDB")
+            rag_logger.warning("Reranker non disponible, fallback sur score ChromaDB")
             sorted_chunks = sorted(chunks, key=lambda x: x.get("score", 0), reverse=True)
             return sorted_chunks[:top_k]
 
+        start_time = time.perf_counter()
         # Préparation des paires (question, chunk) pour le reranker
         pairs = [(query, chunk["text"]) for chunk in chunks]
 
@@ -84,15 +84,22 @@ class BGEReranker:
 
             # Tri par score de reranking décroissant
             reranked = sorted(chunks, key=lambda x: x["rerank_score"], reverse=True)
-
-            logger.info(
+            
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            rag_logger.info(
                 f"Reranking: {len(chunks)} → {top_k} chunks (meilleur score: "
-                f"{reranked[0]['rerank_score']:.3f})"
+                f"{reranked[0]['rerank_score']:.3f})",
+                extra={
+                    "query": query,
+                    "input_chunks": len(chunks),
+                    "output_chunks": top_k,
+                    "duration_ms": round(duration_ms, 2)
+                }
             )
             return reranked[:top_k]
 
         except Exception as e:
-            logger.error(f"Erreur reranking: {e}")
+            rag_logger.error(f"Erreur reranking: {e}", exc_info=True)
             # Fallback sur scores ChromaDB
             return sorted(chunks, key=lambda x: x.get("score", 0), reverse=True)[:top_k]
 
