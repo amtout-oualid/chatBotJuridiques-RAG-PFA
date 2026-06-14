@@ -1,0 +1,110 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class Utilisateur {
+  + id : String [PK]
+  + email : String
+  + nom : String
+  + prenom : String
+  + role : String (client, avocat, admin)
+  + date_creation : DateTime
+  + date_modif : DateTime
+}
+
+class ProfilAvocat {
+  + id : UUID [PK]
+  + utilisateur_id : String [FK]
+  + specialite : String
+  + bio : Text
+  + telephone : String
+  + barreau : String
+  + disponible : Boolean
+  + date_creation : DateTime
+}
+
+class SessionIA {
+  + id : UUID [PK]
+  + utilisateur_id : String [FK]
+  + titre : String
+  + epingle : Boolean
+  + is_deleted : Boolean
+  + date_creation : DateTime
+  + date_modif : DateTime
+}
+
+class MessageIA {
+  + id : UUID [PK]
+  + session_id : UUID [FK]
+  + auteur : String (user, ia)
+  + contenu : Text
+  + sources_rag : JSONB
+  + date_creation : DateTime
+}
+
+class ModeleJuridique {
+  + id : UUID [PK]
+  + nom : String
+  + description : Text
+  + latex_squelette : Text
+  + categorie : String
+  + actif : Boolean
+  + date_creation : DateTime
+}
+
+class DocumentGenere {
+  + id : UUID [PK]
+  + utilisateur_id : String [FK]
+  + modele_id : UUID [FK]
+  + titre : String
+  + latex_contenu : Text
+  + pdf_url : Text
+  + statut : String (brouillon, finalise)
+  + is_deleted : Boolean
+  + date_creation : DateTime
+  + date_modif : DateTime
+}
+
+class FichierUtilisateur {
+  + id : UUID [PK]
+  + utilisateur_id : String [FK]
+  + document_id : UUID [FK]
+  + nom_fichier : String
+  + url_stockage : Text
+  + type_mime : String
+  + taille_octets : BigInteger
+  + indexe_rag : Boolean
+  + qdrant_point_id : UUID
+  + date_creation : DateTime
+}
+
+class ConversationDirecte {
+  + id : UUID [PK]
+  + client_id : String [FK]
+  + avocat_id : String [FK]
+  + statut : String (active, fermee)
+  + date_creation : DateTime
+  + derniere_activite : DateTime
+}
+
+class MessageDirect {
+  + id : UUID [PK]
+  + conversation_id : UUID [FK]
+  + expediteur_id : String [FK]
+  + contenu : Text
+  + lu : Boolean
+  + date_creation : DateTime
+}
+
+Utilisateur "1" -- "0..1" ProfilAvocat
+Utilisateur "1" -- "0..*" SessionIA
+SessionIA "1" -- "0..*" MessageIA
+Utilisateur "1" -- "0..*" DocumentGenere
+ModeleJuridique "1" -- "0..*" DocumentGenere
+Utilisateur "1" -- "0..*" FichierUtilisateur
+DocumentGenere "1" -- "0..*" FichierUtilisateur
+Utilisateur "1" -- "0..*" ConversationDirecte : client
+Utilisateur "1" -- "0..*" ConversationDirecte : avocat
+ConversationDirecte "1" -- "0..*" MessageDirect
+Utilisateur "1" -- "0..*" MessageDirect : expediteur
+
+@enduml

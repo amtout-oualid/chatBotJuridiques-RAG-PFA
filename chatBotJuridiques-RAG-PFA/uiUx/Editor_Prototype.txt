@@ -1,0 +1,46 @@
+@startsalt
+title Legal Template Editor UI Prototype
+
+{+
+  {/ Chat | DMS | <b>Editor | Lawyers }
+  {
+    {T
+     + <b>Projects
+     ++ PINNED
+     +++ 📌 NDA Corp
+     ++ RECENT
+     +++ Lease Agreement
+     --
+     + <b>Assets
+     ++ logo.png
+     ++ [ Upload Asset ]
+    }
+    |
+    {
+      <b>main.tex
+      " \documentclass{article}       "
+      " \usepackage{graphicx}         "
+      " \begin{document}              "
+      " \section*{Contrat}            "
+      " \end{document}                "
+    }
+    |
+    {
+      <b>PDF Viewer
+      [Compile] | [Download]
+      ==
+      .
+      .  [LIVE PDF RENDERING HERE]
+      .
+    }
+    |
+    {
+      <b>AI Assistant
+      ==
+      [AI]: How can I help modify this code?
+      --
+      "/template NDA" | [Send]
+    }
+  }
+}
+@endsalt

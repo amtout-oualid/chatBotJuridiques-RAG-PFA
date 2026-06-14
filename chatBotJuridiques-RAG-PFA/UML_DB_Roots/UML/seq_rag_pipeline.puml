@@ -1,0 +1,45 @@
+@startuml
+actor User
+participant "Frontend UI" as UI
+participant "FastAPI Backend" as Backend
+participant "Vector Store\n(ChromaDB)" as Chroma
+participant "Embedder\n(BAAI/bge-m3)" as Embedder
+participant "Reranker\n(BAAI/bge-reranker)" as Reranker
+participant "Prompt Template Builder" as PromptBuilder
+participant "Gemini LLM API" as Gemini
+
+User -> UI : Asks legal question
+UI -> Backend : POST /chats/{id}/messages
+activate Backend
+
+Backend -> Embedder : embed_query(user_question)
+activate Embedder
+Embedder --> Backend : query_embedding
+deactivate Embedder
+
+Backend -> Chroma : search(query_embedding, top_k=20)
+activate Chroma
+Chroma --> Backend : Top 20 relevant chunks
+deactivate Chroma
+
+Backend -> Reranker : rerank(user_question, 20_chunks, top_k=5)
+activate Reranker
+Reranker --> Backend : Top 5 absolute chunks
+deactivate Reranker
+
+Backend -> PromptBuilder : assemble_prompt(5_chunks, user_question)
+activate PromptBuilder
+PromptBuilder --> Backend : Final Augmented Prompt
+deactivate PromptBuilder
+
+Backend -> Gemini : generate_content(Final Augmented Prompt)
+activate Gemini
+Gemini --> Backend : AI Response
+deactivate Gemini
+
+Backend -> Backend : Save messages to DB (PostgreSQL)
+
+Backend --> UI : AI Message JSON
+deactivate Backend
+UI --> User : Displays AI Answer
+@enduml

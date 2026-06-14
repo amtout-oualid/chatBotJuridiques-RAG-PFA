@@ -1,0 +1,194 @@
+================================================================================
+DIAGRAM 1: ENTERPRISE LOGGING SYSTEM ARCHITECTURE
+================================================================================
+```mermaid
+flowchart TD
+    subgraph Sources["Event Sources (FastAPI Context)"]
+        Req[FastAPI HTTP Middleware]
+        DB_Events[SQLAlchemy Event Listeners]
+        RAG_Events[RAG Pipeline Operations]
+        AI_Events[Gemini / External APIs]
+    end
+
+    subgraph Processing["Logger Module (logger.py)"]
+        Context[ContextVars: correlation_id]
+        Formatter[JSONFormatter]
+        Scrubber[Regex Secret Scrubber: JWT, API Keys, Passwords]
+    end
+
+    subgraph Handlers["Log Handlers"]
+        Stdout[StreamHandler: stdout]
+        TRFH[TimedRotatingFileHandler: Midnight, 30 Days]
+    end
+
+    subgraph Outputs["Log Files (/logs)"]
+        AppLog[app.log]
+        RagLog[rag.log]
+        DbLog[db.log]
+        ChromaLog[chromadb.log]
+        AllLog[all.log]
+    end
+
+    subgraph Rotation["Lifecycle Management"]
+        Compressor[GZIP Compressor]
+        Archive[(Archived .gz logs)]
+        Delete[Auto-delete > 30 days]
+    end
+
+    Sources -->|Emits Record| Processing
+    Context -.-> Formatter
+    Formatter --> Scrubber
+    Scrubber --> Handlers
+    
+    Handlers --> Stdout
+    Handlers --> Outputs
+    TRFH --> Outputs
+
+    Outputs -->|Midnight Trigger| Compressor
+    Compressor --> Archive
+    Archive --> Delete
+
+    style Processing fill:#f9f,stroke:#333,stroke-width:2px
+    style Scrubber fill:#ff9,stroke:#e60,stroke-width:2px
+```
+
+================================================================================
+DIAGRAM 2: COMPACT BACKEND ARCHITECTURE (Optimized for Report)
+================================================================================
+```mermaid
+flowchart LR
+    Client([Frontend]) <--> API[FastAPI Gateway]
+    
+    subgraph Core Services
+        API --> Auth[Auth & Security]
+        API --> Routes[Service Routers]
+        Routes --> C[Chat Logic]
+        Routes --> D[DMS Logic]
+        Routes --> E[Editor Logic]
+    end
+    
+    subgraph Persistence Layer
+        C & D & E <--> SQL[(PostgreSQL DB)]
+        SQL <--> RLS((Row-Level Security))
+    end
+    
+    subgraph Intelligence Engine
+        C <--> RAG[RAG Pipeline]
+        RAG <--> Chroma[(ChromaDB)]
+        RAG <--> Models[Embedder & Reranker]
+        
+        C & E <--> Gemini((Google Gemini API))
+    end
+    
+    subgraph LaTeX Compilation
+        E --> Cloud[LaTeXLite API]
+        E --> Local[Local pdflatex]
+    end
+
+    style Core Services fill:#f4f4f4,stroke:#333
+    style Persistence Layer fill:#e6f7ff,stroke:#333
+    style Intelligence Engine fill:#fff0f5,stroke:#333
+```
+
+================================================================================
+DIAGRAM 3: FRONTEND REACT ROUTING & COMPONENT TREE
+================================================================================
+```mermaid
+graph TD
+    App[App.jsx] --> ClerkProv[ClerkProvider]
+    ClerkProv --> Router[React Router DOM]
+    
+    Router --> Layout[LayoutContainer: App Shell]
+    Layout --> Sidebar[Sidebar Component]
+    Layout --> Topbar[Topbar Component\nDynamic Action Buttons]
+    
+    Router --> PubRoute[Public Routes]
+    Router --> PrivRoute[Protected Routes]
+    
+    PubRoute --> Landing[LandingPage]
+    PubRoute --> SignIn[SignIn / SignUp Pages]
+    
+    PrivRoute --> ChatRoot[ChatPage]
+    PrivRoute --> DMSRoot[DatabasePage]
+    PrivRoute --> EditorRoot[EditorPage]
+    PrivRoute --> LawyerRoot[LawyersPage]
+    
+    subgraph Chat Ecosystem
+        ChatRoot --> ChatList[ChatSessionList]
+        ChatRoot --> ChatFeed[AI & User Messages]
+        ChatRoot --> MD[MarkdownRenderer w/ RTL/LTR CSS]
+        ChatRoot --> FileAttach[FileAttachModal]
+    end
+    
+    subgraph Document Management System
+        DMSRoot --> Folders[Virtual Folders & Breadcrumbs\nRoot > My Documents]
+        DMSRoot --> ViewToggle[Grid & List Views]
+        DMSRoot --> Pagination[Pagination Controls\nPage x of y]
+        DMSRoot --> Sort[Order By Filters\nDate, Size, Name]
+        DMSRoot --> InlineDMS[Inline Folder/File Renaming]
+    end
+    
+    subgraph LaTeX Editor Ecosystem
+        EditorRoot --> ProjNav[Pinned & Recent Projects]
+        EditorRoot --> CodeEdit[CodeEditor / Monaco]
+        EditorRoot --> PdfView[PDF Viewer]
+        EditorRoot --> AIChat[Editor AI Assistant\nSupports /template]
+        EditorRoot --> InlineEdit[Inline Renaming]
+    end
+    
+    style App fill:#f9f,stroke:#333,stroke-width:2px
+    style PrivRoute fill:#ff9,stroke:#333,stroke-width:2px
+```
+
+================================================================================
+DIAGRAM 4: DETAILED RAG PIPELINE (Ingestion & Retrieval)
+================================================================================
+```mermaid
+flowchart TB
+    %% Definitions
+    PDF([Raw Legal PDFs])
+    User([User Query])
+    Gemini(((Google Gemini\n2.5 Flash)))
+    Answer([AI Response])
+
+    subgraph "Phase 1: Offline Ingestion Pipeline"
+        direction TB
+        Ext[PyMuPDF / pdf2image]
+        GPT4o[GPT-4o Vision OCR\n+ Strict Noise Filtering]
+        XML[Custom XML Chunker\n<chunk> & <table>]
+        
+        PDF -->|Extract Pages| Ext
+        Ext -->|Base64 Images| GPT4o
+        GPT4o -->|Raw XML Text| XML
+    end
+
+    subgraph "Phase 2: Embedding & Storage"
+        direction TB
+        Embed1[BAAI/bge-m3 Embedder]
+        Chroma[(ChromaDB\nVector Store)]
+        
+        XML -->|Text & Table Titles| Embed1
+        Embed1 -->|Float Vectors| Chroma
+    end
+
+    subgraph "Phase 3: Online Retrieval & Generation"
+        direction TB
+        Embed2[BAAI/bge-m3 Embedder]
+        Search[Cosine Similarity Search\nTop 20 Chunks]
+        Rerank[BAAI/bge-reranker-v2-m3\nCross-Encoder]
+        Assemble[Prompt Assembly\nContext Injection]
+        
+        User -->|Query| Embed2
+        Embed2 -->|Query Vector| Search
+        Chroma -.->|Fetch Matches| Search
+        Search -->|Top 20| Rerank
+        Rerank -->|Top 5 Absolute| Assemble
+    end
+
+    Assemble -->|Augmented Prompt| Gemini
+    Gemini --> Answer
+
+    style GPT4o fill:#fff0f5,stroke:#333,stroke-width:2px
+    style Rerank fill:#e6f7ff,stroke:#333,stroke-width:2px
+    style Chroma fill:#f4f4f4,stroke:#333,stroke-width:2px
+```

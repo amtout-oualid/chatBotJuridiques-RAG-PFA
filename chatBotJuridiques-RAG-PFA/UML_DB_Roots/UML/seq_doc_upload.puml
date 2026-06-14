@@ -1,0 +1,50 @@
+@startuml
+actor User
+participant "Offline Ingestion Script\n(FastAPI Context)" as Script
+participant "PDF Extractor\n(PyMuPDF / pdf2image)" as Extractor
+participant "GPT-4o Vision OCR\n(OpenAI)" as GPT4o
+participant "Semantic Chunker\n(Regex / XML Parser)" as Chunker
+participant "Embedder\n(BAAI/bge-m3)" as Embedder
+participant "Vector Store\n(ChromaDB)" as Chroma
+
+User -> Script : Execute ingest_corpus.py
+activate Script
+
+Script -> Extractor : convert_to_images(pdf_file)
+activate Extractor
+Extractor --> Script : List of base64 Images
+deactivate Extractor
+
+loop For each page image
+    Script -> GPT4o : extract_text_from_image(image, SYSTEM_PROMPT)
+    activate GPT4o
+    Note right of GPT4o
+        SYSTEM_PROMPT forces strict noise filtering,
+        <chunk> tag generation, and Markdown tables.
+    End Note
+    GPT4o --> Script : Extracted text with <chunk> and <table> tags
+    deactivate GPT4o
+end
+
+Script -> Chunker : chunk_document(extracted_pages)
+activate Chunker
+Chunker --> Script : List of standardized Chunks (Text & Metadata)
+deactivate Chunker
+
+Script -> Embedder : embed_texts(chunks)
+activate Embedder
+Embedder --> Script : Batch Embeddings
+deactivate Embedder
+
+Script -> Chroma : add_chunks(chunks, embeddings, metadata)
+activate Chroma
+Note right of Chroma
+    If table, embeds only <title>.
+    Preserves Markdown <content> in payload.
+End Note
+Chroma --> Script : Success (Chunks indexed)
+deactivate Chroma
+
+Script --> User : "Ingestion Complete!"
+deactivate Script
+@enduml

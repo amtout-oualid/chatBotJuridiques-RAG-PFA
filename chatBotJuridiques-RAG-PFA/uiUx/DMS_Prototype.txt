@@ -1,0 +1,31 @@
+@startsalt
+title Document Management System (DMS) UI Prototype
+
+{+
+  {/ Chat | <b>DMS | Editor | Lawyers }
+  {
+    {T
+     + <b>Navigation
+     ++ Dashboard
+     ++ My Documents
+     ++ Shared with me
+    }
+    |
+    {
+      <b>Database Explorer
+      [ Search legal documents... ] | [ Order By: Creation Date ^] | [ New Folder ]
+      ==
+      Root > My Documents
+      ==
+      {#
+        <b>Name | <b>Type | <b>Size | <b>Date
+        [📁 Contrats] | FOLDER | - | 12/06/2026
+        [📄 com_08_26.pdf] | PDF | 2.1 MB | 11/06/2026
+        [📊 data_users.csv] | CSV | 1.4 MB | 10/06/2026
+      }
+      --
+      < Page 1 of 5 >
+    }
+  }
+}
+@endsalt

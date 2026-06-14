@@ -1,0 +1,53 @@
+@startuml
+actor User
+participant "Frontend Editor UI" as UI
+participant "FastAPI Backend" as Backend
+participant "Template Registry\n(JSON)" as Registry
+participant "Prompt Builder" as PromptBuilder
+participant "Gemini LLM API" as Gemini
+participant "LaTeX Compiler\n(LaTeXLite / pdflatex)" as Compiler
+
+User -> UI : Prompts: "/template Create an NDA for Google"
+UI -> Backend : POST /editor/ai-suggest (prompt, context)
+activate Backend
+
+Backend -> Backend : Intercept "/template" command
+Backend -> Registry : Read templates_registry.json
+activate Registry
+Registry --> Backend : List of available templates
+deactivate Registry
+
+Backend -> PromptBuilder : Inject templates & user intent
+activate PromptBuilder
+PromptBuilder --> Backend : Strict Template Selection Prompt
+deactivate PromptBuilder
+
+Backend -> Gemini : generate_content(Prompt)
+activate Gemini
+Gemini --> Backend : Adapted LaTeX Code
+deactivate Gemini
+
+Backend --> UI : Return new LaTeX Code
+deactivate Backend
+
+UI -> User : Displays new LaTeX Code in Editor
+User -> UI : Clicks "Compile"
+UI -> Backend : POST /editor/compile (latex_code, assets)
+activate Backend
+
+alt Project contains images
+    Backend -> Compiler : Compile locally using pdflatex
+    activate Compiler
+    Compiler --> Backend : Generated PDF
+    deactivate Compiler
+else Text-only project
+    Backend -> Compiler : Compile via LaTeXLite API
+    activate Compiler
+    Compiler --> Backend : Base64 PDF
+    deactivate Compiler
+end
+
+Backend --> UI : PDF File / Base64 Data
+deactivate Backend
+UI --> User : Renders PDF in viewer
+@enduml

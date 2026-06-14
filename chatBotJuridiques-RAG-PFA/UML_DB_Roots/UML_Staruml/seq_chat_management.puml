@@ -1,0 +1,63 @@
+@startuml
+actor User
+participant "Frontend UI" as UI
+participant "FastAPI Backend" as Backend
+participant "PostgreSQL DB" as DB
+participant "RAG Pipeline" as RAG
+participant "Gemini LLM API" as Gemini
+
+== 1. Create New Chat Session ==
+User -> UI : Clicks "New Chat"
+UI -> Backend : POST /chats (titre: "Nouvelle Discussion")
+activate Backend
+Backend -> DB : INSERT INTO sessions_ia
+DB --> Backend : session_id
+Backend --> UI : New Session Data
+deactivate Backend
+UI --> User : Opens Empty Chat Window
+
+== 2. Live File Upload (Optional) ==
+User -> UI : Uploads File via "+" Button
+UI -> Backend : POST /files/upload
+activate Backend
+Backend -> DB : Save File Metadata
+Backend --> UI : Return file_id
+deactivate Backend
+
+== 3. Send Message (Two Paths) ==
+User -> UI : Types Prompt & Sends
+UI -> Backend : POST /chats/{session_id}/messages (prompt, file_id?)
+activate Backend
+Backend -> DB : INSERT User Message
+
+alt Path A: No File Attached (Static RAG)
+    Backend -> RAG : Query Vector DB & Rerank
+    activate RAG
+    RAG --> Backend : Top Context Chunks
+    deactivate RAG
+    Backend -> Backend : Build RAG Prompt
+else Path B: File Attached (Live File Bypass)
+    Backend -> Backend : Load Raw File Bytes (Base64)
+    Backend -> Backend : Build Multimodal Prompt
+end
+
+Backend -> Gemini : generate_content(Prompt)
+activate Gemini
+Gemini --> Backend : AI Response
+deactivate Gemini
+
+Backend -> DB : INSERT AI Message
+Backend --> UI : Return Both Messages
+deactivate Backend
+UI --> User : Displays AI Answer
+
+== 4. Manage Chat Metadata ==
+User -> UI : Clicks "Rename" or "Pin"
+UI -> Backend : PATCH /chats/{session_id} (titre, epingle)
+activate Backend
+Backend -> DB : UPDATE sessions_ia
+Backend --> UI : Success
+deactivate Backend
+UI --> User : UI Updates (Sidebar)
+
+@enduml

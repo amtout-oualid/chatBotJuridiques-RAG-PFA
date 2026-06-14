@@ -1,0 +1,17 @@
+\chapter*{Summary}
+\addcontentsline{toc}{chapter}{Summary}
+
+With the rapid evolution of Artificial Intelligence technologies, large language models have proven highly efficient in assimilating massive amounts of information and reformulating it to answer complex questions. Conversely, traditional legal consultations and case analyses remain highly expensive. Proper utilization of AI can drastically reduce this cost to a nominal fraction, making legal services more accessible.
+
+Our goal through this end-of-year project is to develop an integrated digital platform that allows users to obtain accurate legal consultations, analyze their complex cases, and automatically generate legal documents. To achieve this, we first conducted a comprehensive market needs analysis and defined the core functionalities required to solve the target problems. We then modeled the entire system architecture using UML diagrams.
+
+We faced a major obstacle: global models (like Gemini, GPT, and Claude) are not sufficiently trained on Moroccan law, leading to "hallucinations" and fabricated legal information. To solve this, we designed and built an advanced architecture based on Retrieval-Augmented Generation (RAG). This allowed us to construct a vector database using ChromaDB, populated via Optical Character Recognition (OCR) using GPT-4o with custom optimizations adapted to Moroccan documents.
+
+Technically, we adopted FastAPI for a high-performance backend, React for dynamic user interfaces, and PostgreSQL for robust relational database management.
+
+\noindent\rule[2pt]{\textwidth}{0.5pt}
+
+{\textbf{Key Words :}}
+Legal Consultations, Artificial Intelligence, Hallucination, RAG, Vector Database, ChromaDB, GPT-4o, OCR, UML, FastAPI, React, PostgreSQL.
+\\
+\noindent\rule[2pt]{\textwidth}{0.5pt}

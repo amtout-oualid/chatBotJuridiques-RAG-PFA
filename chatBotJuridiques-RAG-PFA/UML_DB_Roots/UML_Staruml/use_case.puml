@@ -1,0 +1,61 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "User" as User
+actor "Administrator" as Admin
+actor "Log Responsible" as LogAdmin
+
+actor "Clerk Auth" as Clerk <<External>>
+actor "Gemini LLM" as LLM <<External>>
+actor "GPT-4o OCR" as OCR <<External>>
+actor "LaTeXLite" as Compiler <<External>>
+
+package "ChatBot Juridique AI Platform" {
+  
+  package "Authentication" {
+    usecase "Create & Manage Account" as UC_Account
+    usecase "Log-in and Out" as UC_Auth
+  }
+
+  package "Chat Interface" {
+    usecase "Create and Control Chats" as UC_Chats
+    usecase "Interact with LLM" as UC_LLM
+  }
+
+  package "Workspace" {
+    usecase "Document Management\n(Upload, Create, Rename, Modify...)" as UC_DMS
+    usecase "Template Editor & Import" as UC_Template
+    usecase "Compile to PDF" as UC_Compile
+  }
+
+  package "System Administration" {
+    usecase "Manage Platform Users" as UC_ManageUsers
+    usecase "Monitor & Manage System Logs" as UC_MonitorLogs
+  }
+}
+
+User --> UC_Account
+User --> UC_Auth
+
+User --> UC_Chats
+User --> UC_LLM
+
+User --> UC_DMS
+User --> UC_Template
+User --> UC_Compile
+
+Admin --> UC_ManageUsers
+LogAdmin --> UC_MonitorLogs
+
+UC_Account --> Clerk
+UC_Auth --> Clerk
+
+UC_LLM --> LLM
+UC_DMS --> LLM
+UC_DMS --> OCR
+UC_Template --> LLM
+
+UC_Compile --> Compiler
+
+@enduml

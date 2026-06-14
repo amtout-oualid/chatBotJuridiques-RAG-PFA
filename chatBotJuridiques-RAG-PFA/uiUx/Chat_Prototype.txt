@@ -1,0 +1,27 @@
+@startsalt
+title Chat Page UI Prototype
+
+{+
+  {/ <b>Chat | DMS | Editor | Lawyers }
+  {
+    {T
+     + <b>History
+     ++ PINNED
+     +++ 📌 NDA Review
+     ++ RECENT
+     +++ Contract Analysis
+     +++ Hajj Grant 2026
+    }
+    |
+    {
+      <b>AI Legal Assistant
+      ==
+      [User]: What are the terms of the EQDOM offer?
+      --
+      [AI]: According to Circular COM 08/26...
+      ==
+      "Type your message here..." | [+] | [Send]
+    }
+  }
+}
+@endsalt

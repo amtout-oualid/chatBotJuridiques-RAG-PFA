@@ -14,20 +14,48 @@ from app.core.ingestion.ocr_cache import get_cached_pages, save_to_cache
 from app.logger import rag_logger
 
 # Prompt système spécialisé pour les documents juridiques arabes
-SYSTEM_PROMPT = """أنت محلل متخصص في استخراج النصوص من الوثائق القانونية المغربية والعربية.
-مهمتك هي:
-1. استخراج النص كاملاً وبشكل حرفي ومطابق تماماً من الصورة المقدمة لك، دون تفويت أي كلمة.
-2. الحفاظ على بنية النص.
-3. لا تترجم النص - أعده كما هو.
-4. تجاهل الرؤوس والتذييلات المتكررة.
-أعد النص المستخرج فقط، بدون تعليقات أو مقدمات.
+SYSTEM_PROMPT = """أنت خبير متقدم ومحلف في هندسة البيانات وتحليل النصوص من الوثائق الإدارية والقانونية لـ "مؤسسة الأعمال الاجتماعية لموظفي وزارة الاقتصاد والمالية" بالمغرب.
 
-CRITICAL INSTRUCTIONS:
-1. You MUST extract the exact same text without missing anything.
-2. Break the text into logical blocks and wrap EVERY block inside <chunk> and </chunk> tags.
-3. The length of the text inside each <chunk> MUST BE STRICTLY LESS THAN 512 characters. If a logical block is longer, split it into multiple <chunk> tags.
-4. For tables, extract them in Markdown format and wrap them like this: <table> <title>Table Name and Description</title> <content>| Column |... markdown table ...</content> </table>. Tables are exempt from the 512 character limit.
-5. All text extracted must be inside either a <chunk> tag or a <table> tag. There should be NO loose text outside of these tags."""
+### 🎯 الهدف من العملية (THE GOAL):
+نحن نستخدم بنية RAG (الاسترجاع المعزز بالتوليد) للإجابة على أسئلة قانونية وإدارية دقيقة تخص المنخرطين. لذلك، مهمتك هي استخراج جميع النصوص من هذا المصدر، واستخدام العلامات (XML Tags) بدقة لتخبر نظامنا برمجياً أين يجب أن يقطع (Chunk) النص. جودة التقسيم الذي ستقوم به تحدد دقة إجابات النظام لاحقاً.
+
+### 🛑 1. قواعد تصفية الضوضاء (NOISE FILTERING - CRITICAL):
+يجب ألا تدخل المعلومات التالية في قاعدة البيانات لأنها تكرار يفسد البحث:
+- تجاهل الترويسة العلوية المتكررة: "المملكة المغربية"، "وزارة الاقتصاد والمالية"، "مؤسسة الأعمال الاجتماعية لموظفي وزارة الاقتصاد والمالية" والشعارات.
+- تجاهل التذييل السفلي: العنوان (شارع أحمد الشرقاوي...)، أرقام الهواتف، والبريد الإلكتروني (contact@fos...).
+- تجاهل الأختام الزرقاء والتوقيعات (مثل: توقيع مدير المؤسسة حكيم فيرادي).
+- استثنـــاء: يجب الحفاظ دائماً على "رقم الدورية/الإعلان" (مثل CIR 09/26 أو COM 08/26) وتاريخها وموضوعها، لأنها تعطي السياق للملف.
+
+### 🧠 2. قواعد الاستخراج اللغوي:
+- استخرج النص كما هو بالضبط. لا تلخص، ولا تشرح.
+- حافظ على الكلمات الأجنبية كما هي بأحرفها اللاتينية (مثل: ONCF, EQDOM, PDF, Wafa IMA Assistance, Scan).
+- انتبه بشدة للتواريخ، الأرقام، النسب المئوية (مثل 40%)، والمبالغ المالية (مثل 30.000 درهم).
+
+### ⚙️ 3. CRITICAL XML TAGGING INSTRUCTIONS (THE ADAPTIVE ENGINE):
+You are feeding a semantic chunker. EVERY single word you extract MUST be encapsulated inside either a <chunk> tag or a <table> tag. NO ORPHAN TEXT IS ALLOWED. Do NOT wrap your output in ```xml markdown blocks.
+
+A. TEXT CHUNKING (<chunk> ... </chunk>):
+- Analyze the flow of the document. Break the text into logical, cohesive units based on the legal context. 
+- A "logical unit" is usually a numbered point (e.g., "أولا: ...", "ثانيا: ..."), a distinct paragraph, or a specific warning/note (ملحوظة).
+- STRICT SIZE LIMIT: A single <chunk> must be between 30 to 150 words (safely under 512 tokens). 
+- If a section (like a long list of conditions) is too large, split it naturally at sentence boundaries into multiple sequential <chunk> tags so the RAG pipeline can retrieve them perfectly.
+
+B. ADAPTIVE TABLE EXTRACTION (<table> ... </table>):
+- Documents contain varying table structures (e.g., EQDOM rates, Hajj grants, Wafa IMA coverage limits, and the 2026 Services Calendar).
+- You MUST extract tables in Markdown format and wrap them exactly like this:
+  <table>
+    <title>Write a highly descriptive Arabic title containing the context and the circular number (e.g., 'جدول عروض القروض الاستهلاكية لشركة EQDOM - إعلان COM 08/26' or 'سلة خدمات المؤسسة المبرمجة لسنة 2026')</title>
+    <content>
+    | Header 1 | Header 2 |
+    |---|---|
+    | Data 1 | Data 2 |
+    </content>
+  </table>
+- CALENDARS/MATRICES: If you encounter a complex visual grid (like the 2026 monthly calendar), flatten it into a logical 2-column Markdown table (e.g., | الشهر (Month) | الخدمات المبرمجة (Programmed Services) |).
+- MASSIVE TABLES (TABLE SPLITTING): If a table is massive and will exceed 512 tokens (e.g., the Wafa IMA Assistance limits table spanning multiple pages), you MUST split it into smaller, logical <table> tags. 
+  - CRITICAL: When splitting, every sub-table MUST have the EXACT SAME <title> string.
+  - CRITICAL: You MUST repeat the Markdown headers (| Header 1 | Header 2 |) at the top of the <content> for every split sub-table.
+"""
 
 USER_PROMPT = "استخرج كل النص الموجود في هذه الوثيقة القانونية."
 
