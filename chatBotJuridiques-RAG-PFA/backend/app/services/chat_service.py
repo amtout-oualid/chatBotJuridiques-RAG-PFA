@@ -125,9 +125,26 @@ async def send_message(
 ) -> dict:
     from app.core.retrieval.vector_store import vector_store
     from app.core.retrieval.reranker import reranker
+    from app.ai import rewrite_query_async, FINAL_GENERATION_PROMPT
 
     app_logger.info("Sending message to chat session", extra={"session_id": str(session_id), "user_id": clerk_id, "has_file": bool(data.file_id)})
     
+    # 0. Fetch Conversational Memory (Last 3 message pairs = 6 messages)
+    # We fetch this BEFORE inserting the new user message
+    past_msgs = await db.execute(
+        select(MessageIA)
+        .where(MessageIA.session_id == session_id)
+        .order_by(MessageIA.date_creation.desc())
+        .limit(6)
+    )
+    past_msgs = list(reversed(past_msgs.scalars().all()))
+    
+    history_lines = []
+    for m in past_msgs:
+        role = "User" if m.auteur == "user" else "AI"
+        history_lines.append(f"{role}: {m.contenu}")
+    history_str = "\n".join(history_lines) if history_lines else "لا يوجد سجل سابق."
+
     # 1. Insert user message
     user_msg = MessageIA(
         session_id=session_id,
@@ -150,6 +167,7 @@ async def send_message(
         
         media_parts = await file_service.get_multimodal_parts(file_record)
         prompt = (
+            f"### سجل المحادثة (Chat History):\n{history_str}\n\n"
             f"Question utilisateur: {data.contenu}\n\n"
             f"(Note: Réponds en utilisant le document joint à ce message. "
             f"S'il s'agit d'une image ou d'un PDF, analyse son contenu visuel ou textuel.)"
@@ -159,13 +177,36 @@ async def send_message(
             "nom_fichier": file_record.nom_fichier,
         }
     else:
-        # ROUTE 2: Static RAG Pipeline
-        app_logger.info("Chat message using static RAG pipeline (Path A)")
-        chunks = vector_store.search(data.contenu, top_k=20)
-        reranked_chunks = reranker.rerank(data.contenu, chunks, top_k=5)
+        # ROUTE 2: Advanced Static RAG Pipeline
+        app_logger.info("Chat message using Advanced RAG pipeline (Path A)")
         
+        # Step 1: Query Transformation & Decomposition
+        sub_queries = await rewrite_query_async(history_str, data.contenu)
+        
+        # Step 2: Retrieval per sub-query
+        unique_chunks = {}
+        for sq in sub_queries:
+            sq_chunks = vector_store.search(sq, top_k=15)
+            reranked = reranker.rerank(sq, sq_chunks, top_k=5)
+            
+            for c in reranked:
+                # Use chunk id to deduplicate overlapping results
+                chunk_id = c.get("id")
+                if chunk_id not in unique_chunks:
+                    unique_chunks[chunk_id] = c
+                else:
+                    # Keep the highest rerank score if duplicated
+                    if c.get("rerank_score", 0) > unique_chunks[chunk_id].get("rerank_score", 0):
+                        unique_chunks[chunk_id] = c
+        
+        # We simply collect all unique chunks from all sub-queries.
+        # We DO NOT do a global sort/cutoff here because cross-encoder scores 
+        # from different sub-queries are not directly comparable and we don't want to drop context.
+        final_chunks = list(unique_chunks.values())
+        
+        # Format Context
         context_parts = []
-        for i, chunk in enumerate(reranked_chunks, 1):
+        for i, chunk in enumerate(final_chunks, 1):
             meta = chunk.get("metadata", {})
             doc_name = meta.get("document_name", "Document")
             page = meta.get("page_number", "?")
@@ -174,19 +215,21 @@ async def send_message(
         
         rag_context = "\n\n---\n\n".join(context_parts)
         if not rag_context:
-            rag_context = "Aucun document trouvé dans la base de connaissances."
+            rag_context = "لم يتم العثور على أي نصوص قانونية مطابقة في قاعدة البيانات."
 
-        prompt = (
-            f"أنت مساعد قانوني متخصص في القانون المغربي والعربي.\n"
-            f"مهمتك هي الإجابة على الأسئلة القانونية بناءً على الوثائق المقدمة إليك.\n\n"
-            f"السياق من الوثائق القانونية:\n{rag_context}\n\n"
-            f"السؤال:\n{data.contenu}\n\n"
-            f"الإجابة:"
+        # Step 3: Final Generation with Graceful Fallback
+        prompt = FINAL_GENERATION_PROMPT.format(
+            history=history_str, 
+            context=rag_context, 
+            query=data.contenu
         )
-        sources_rag = {"chunks_retrieved": len(reranked_chunks)}
+        sources_rag = {
+            "sub_queries": sub_queries,
+            "unique_chunks_retrieved": len(final_chunks)
+        }
 
-    # Call Gemini
-    ai_response_text = await call_legal_ai(prompt, media_parts=media_parts)
+    # Call Gemini (Shared API for both routes - Bypassing standard SYSTEM_PROMPT)
+    ai_response_text = await call_legal_ai(prompt, media_parts=media_parts, bypass_system_prompt=True)
 
     # 3. Insert AI message
     ai_msg = MessageIA(

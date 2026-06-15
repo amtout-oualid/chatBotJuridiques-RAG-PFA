@@ -141,54 +141,64 @@ graph TD
 ```
 
 ================================================================================
-DIAGRAM 4: DETAILED RAG PIPELINE (Ingestion & Retrieval)
+DIAGRAM 4: ADVANCED RAG PIPELINE (Execution Flow)
 ================================================================================
 ```mermaid
 flowchart TB
     %% Definitions
-    PDF([Raw Legal PDFs])
     User([User Query])
-    Gemini(((Google Gemini\n2.5 Flash)))
-    Answer([AI Response])
+    Gemini1(((Gemini 2.5 Flash\nCall 1: Decomposition)))
+    Gemini2(((Gemini 2.5 Flash\nCall 2: Generation)))
+    Chroma[(ChromaDB)]
+    Answer([Final AI Response])
 
-    subgraph "Phase 1: Offline Ingestion Pipeline"
+    subgraph "Phase 1: Memory & Translation"
         direction TB
-        Ext[PyMuPDF / pdf2image]
-        GPT4o[GPT-4o Vision OCR\n+ Strict Noise Filtering]
-        XML[Custom XML Chunker\n<chunk> & <table>]
-        
-        PDF -->|Extract Pages| Ext
-        Ext -->|Base64 Images| GPT4o
-        GPT4o -->|Raw XML Text| XML
+        Mem[Fetch Conversational Memory\nLast 6 Messages]
+        Trans[Translate & Decompose\nComplex Query into Array]
     end
 
-    subgraph "Phase 2: Embedding & Storage"
+    subgraph "Phase 2: Multi-Query Retrieval"
         direction TB
-        Embed1[BAAI/bge-m3 Embedder]
-        Chroma[(ChromaDB\nVector Store)]
+        Loop[[For Each Sub-Query]]
+        Embed[BAAI/bge-m3 Embedder]
+        Search[Cosine Search\nTop 15 Chunks]
+        Rerank[BAAI/bge-reranker-v2-m3\nTop 5 Chunks]
         
-        XML -->|Text & Table Titles| Embed1
-        Embed1 -->|Float Vectors| Chroma
+        Loop --> Embed
+        Embed --> Search
+        Search --> Rerank
     end
 
-    subgraph "Phase 3: Online Retrieval & Generation"
+    subgraph "Phase 3: Assembly & Fallback"
         direction TB
-        Embed2[BAAI/bge-m3 Embedder]
-        Search[Cosine Similarity Search\nTop 20 Chunks]
-        Rerank[BAAI/bge-reranker-v2-m3\nCross-Encoder]
-        Assemble[Prompt Assembly\nContext Injection]
-        
-        User -->|Query| Embed2
-        Embed2 -->|Query Vector| Search
-        Chroma -.->|Fetch Matches| Search
-        Search -->|Top 20| Rerank
-        Rerank -->|Top 5 Absolute| Assemble
+        Dedup[Deduplicate Unique Chunks\nPreserve All Context]
+        Prompt[Assemble Final Prompt\nContext + Memory + Query]
+        Rule{Is Context Sufficient?}
+        Fallback[Graceful Fallback\nGeneral Knowledge + Disclaimer]
+        Strict[Strict Generation\nBased ONLY on Context]
     end
 
-    Assemble -->|Augmented Prompt| Gemini
-    Gemini --> Answer
+    User --> Mem
+    Mem --> Trans
+    Trans -->|Prompt + Memory| Gemini1
+    Gemini1 -->|JSON Array of Sub-Queries| Loop
 
-    style GPT4o fill:#fff0f5,stroke:#333,stroke-width:2px
-    style Rerank fill:#e6f7ff,stroke:#333,stroke-width:2px
+    Rerank --> Dedup
+    Dedup --> Prompt
+    
+    Prompt --> Gemini2
+    Gemini2 --> Rule
+    Rule -->|Yes| Strict
+    Rule -->|No| Fallback
+    
+    Strict --> Answer
+    Fallback --> Answer
+    
+    Chroma -.->|Vector Matches| Search
+
+    style Gemini1 fill:#fff0f5,stroke:#333,stroke-width:2px
+    style Gemini2 fill:#fff0f5,stroke:#333,stroke-width:2px
     style Chroma fill:#f4f4f4,stroke:#333,stroke-width:2px
+    style Fallback fill:#ffe6e6,stroke:#e60000,stroke-width:2px
 ```
