@@ -183,11 +183,13 @@ async def send_message(
         # Step 1: Query Transformation & Decomposition
         sub_queries = await rewrite_query_async(history_str, data.contenu)
         
-        # Step 2: Retrieval per sub-query
+        # Step 2: Retrieval per sub-query (Optimized for CPU Latency)
         unique_chunks = {}
         for sq in sub_queries:
-            sq_chunks = vector_store.search(sq, top_k=15)
-            reranked = reranker.rerank(sq, sq_chunks, top_k=5)
+            # OPTIMIZATION: Reduced from 15 to 7 to prevent CPU bottleneck during Cross-Encoder reranking
+            sq_chunks = vector_store.search(sq, top_k=7)
+            # Rerank to top 3 instead of 5
+            reranked = reranker.rerank(sq, sq_chunks, top_k=3)
             
             for c in reranked:
                 # Use chunk id to deduplicate overlapping results

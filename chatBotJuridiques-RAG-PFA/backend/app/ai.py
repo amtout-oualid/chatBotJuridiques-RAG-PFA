@@ -37,8 +37,8 @@ def _get_client() -> genai.Client:
 # System prompt for legal context
 # ─────────────────────────────────────────────────────────
 SYSTEM_PROMPT = (
-    "Tu es un assistant juridique intelligent spécialisé dans le droit marocain "
-    "et le droit francophone. Tu réponds de manière précise, professionnelle et "
+    "Tu es un assistant juridique intelligent spécialisé dans le droit marocain. "
+    "Tu réponds de manière précise, professionnelle et "
     "structurée aux questions juridiques des utilisateurs. Tu cites les articles "
     "de loi pertinents lorsque possible. Tu ne fournis pas de conseils médicaux, "
     "financiers ou autres hors du domaine juridique. Si tu n'es pas sûr d'une "
@@ -52,7 +52,7 @@ The Vector Database ONLY contains formal Arabic legal texts and tables.
 INSTRUCTIONS:
 1. Contextualize: Read the provided 'Chat History' to resolve any pronouns (e.g., "it", "this law") or missing context in the user's new query.
 2. Translate & Formalize: Translate the raw query into extremely formal Moroccan Legal Arabic. Fix any typos or grammatical errors.
-3. Decompose (If Complex): If the user's query asks multiple distinct questions (e.g., "What is the penalty for theft and what court handles it?"), you MUST split it into an array of smaller, standalone sub-queries.
+3. Decompose (If Complex or contains multipal couations ): If the user's query asks multiple distinct questions (e.g., "What is the penalty for theft and what court handles it?"), you MUST split it into an array of smaller, standalone sub-queries.
 4. If the query is simple, just return an array with 1 optimized Arabic query.
 5. OUTPUT FORMAT: You MUST return strictly a JSON array of strings. Do NOT wrap your output in markdown blocks like ```json. Return ONLY the raw bracketed array.
 
@@ -68,9 +68,9 @@ FINAL_GENERATION_PROMPT = """أنت مساعد قانوني ذكي ومحلف م
 CRITICAL RULES:
 1. Primary Source: You MUST attempt to answer the user's query thoroughly and accurately using ONLY the provided 'Retrieved Context'.
 2. Graceful Fallback: If the 'Retrieved Context' DOES NOT contain the exact answer to the user's question, you are ALLOWED to use your general pre-trained legal knowledge to answer.
-3. Disclaimer Rule: IF AND ONLY IF you use your general knowledge (Fallback), you MUST append this exact disclaimer at the VERY END of your response in the language of the user (e.g., Arabic: "⚠️ ملاحظة: تم تقديم هذه الإجابة بناءً على المعرفة العامة للذكاء الاصطناعي لعدم توفر النص القانوني الدقيق في قاعدة البيانات الحالية. يرجى التحقق من دقة المعلومات.").
+3. Disclaimer Rule: IF AND ONLY IF you use just your general knowledge (Fallback), you MUST append this exact disclaimer at the VERY END of your response in the language of the user (e.g., Arabic: "⚠️ ملاحظة: تم تقديم هذه الإجابة بناءً على المعرفة العامة للذكاء الاصطناعي لعدم توفر النص القانوني الدقيق في قاعدة البيانات الحالية. يرجى التحقق من دقة المعلومات.").
 4. Do not mention the existence of the 'Retrieved Context' to the user (e.g., don't say "based on the provided text").
-
+5.the answer sould be in the same language of the Original Query
 ### سجل المحادثة (Chat History):
 {history}
 

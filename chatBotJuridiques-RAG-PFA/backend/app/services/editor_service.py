@@ -513,7 +513,7 @@ async def ai_suggest(latex_code: str, prompt: str, project_files: List[FichierUt
                     "INSTRUCTIONS OBLIGATOIRES:\n"
                     "1. Trouve le modèle qui correspond le mieux à la demande de l'utilisateur.\n"
                     "2. Utilise le 'latex_code' complet de ce modèle exact.\n"
-                    "3. Adapte ce code LaTeX en remplaçant les espaces réservés (comme [Nom], [Date]) par les informations fournies dans la demande de l'utilisateur.\n"
+                    "3. Adapte ce code LaTeX en remplaçant les espaces réservés (comme [Nom], [Date]....) par les informations fournies dans la demande de l'utilisateur.\n"
                     "4. Retourne UNIQUEMENT le code LaTeX final modifié, absolument sans aucun autre texte, commentaire, ni bloc Markdown (pas de ```latex ... ```). Le code doit compiler directement.\n\n"
                     f"Demande utilisateur : {prompt}"
                 )
