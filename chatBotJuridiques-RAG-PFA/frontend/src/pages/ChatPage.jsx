@@ -15,6 +15,7 @@ import ChatSessionList from '../components/ChatSessionList';
 import FileAttachModal from '../components/FileAttachModal';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import { chatService } from '../services/chatService';
+import { useModel } from '../context/ModelContext';
 import './ChatPage.css';
 
 export default function ChatPage() {
@@ -32,6 +33,7 @@ export default function ChatPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [attachModalOpen, setAttachModalOpen] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+  const { selectedModel } = useModel();
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
@@ -150,7 +152,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const res = await chatService.sendMessage(targetId, userContent, fileId);
+      const res = await chatService.sendMessage(targetId, userContent, fileId, selectedModel);
       const userMsg = { ...res.data.user_message };
       if (attachedFile?.nom_fichier) {
         userMsg.attachedFileName = attachedFile.nom_fichier;

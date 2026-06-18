@@ -1,0 +1,57 @@
+\babel@toc {nil}{}\relax 
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {1.1}{\ignorespaces The evolution of Large Language Models.}}{2}{figure.caption.11}%
+\contentsline {figure}{\numberline {1.2}{\ignorespaces Illustration of embedding vectors in a high-dimensional semantic space.}}{5}{figure.caption.13}%
+\contentsline {figure}{\numberline {1.3}{\ignorespaces Hierarchical representation of the HNSW algorithm layers used in modern Vector Databases.}}{6}{figure.caption.14}%
+\contentsline {figure}{\numberline {1.4}{\ignorespaces The standard Retrieval-Augmented Generation (RAG) architecture combining an LLM with an external vector retrieval mechanism.}}{8}{figure.caption.15}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Visual representation of the Scrum Agile methodology.}}{12}{figure.caption.16}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Example of team communication and daily stand-ups.}}{14}{figure.caption.17}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces Version control trace highlighting Git commits and branches on GitHub.}}{15}{figure.caption.18}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Global Use Case Diagram of the ChatBot Juridique AI Platform.}}{22}{figure.caption.19}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Sequence Diagram illustrating Chat Session Management and Multimodal Interaction.}}{23}{figure.caption.20}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Sequence Diagram of the Retrieval-Augmented Generation (RAG) Pipeline execution.}}{24}{figure.caption.21}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Sequence Diagram of the Document Upload and AI-driven OCR Ingestion Process.}}{25}{figure.caption.22}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Sequence Diagram of AI-Assisted Document Generation and Hybrid Compilation.}}{26}{figure.caption.23}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces UML Class Diagram representing the PostgreSQL Relational Database Schema.}}{27}{figure.caption.24}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.1}{\ignorespaces React Logo}}{30}{figure.caption.25}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Vite Logo}}{30}{figure.caption.26}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces Axios Logo}}{31}{figure.caption.27}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces Clerk Logo}}{31}{figure.caption.28}%
+\contentsline {figure}{\numberline {4.5}{\ignorespaces Lucide and Markdown Logos}}{32}{figure.caption.29}%
+\contentsline {figure}{\numberline {4.6}{\ignorespaces FastAPI Logo}}{32}{figure.caption.30}%
+\contentsline {figure}{\numberline {4.7}{\ignorespaces PostgreSQL Logo}}{33}{figure.caption.31}%
+\contentsline {figure}{\numberline {4.8}{\ignorespaces SQLAlchemy Logo}}{33}{figure.caption.32}%
+\contentsline {figure}{\numberline {4.9}{\ignorespaces ChromaDB Logo}}{34}{figure.caption.33}%
+\contentsline {figure}{\numberline {4.10}{\ignorespaces Google Gemini Logo}}{34}{figure.caption.34}%
+\contentsline {figure}{\numberline {4.11}{\ignorespaces OpenAI Logo}}{35}{figure.caption.35}%
+\contentsline {figure}{\numberline {4.12}{\ignorespaces BAAI BGE-M3 Model}}{35}{figure.caption.36}%
+\contentsline {figure}{\numberline {4.13}{\ignorespaces PyMuPDF Logo}}{36}{figure.caption.37}%
+\contentsline {figure}{\numberline {4.14}{\ignorespaces LaTeX Compilation Tools}}{37}{figure.caption.38}%
+\contentsline {figure}{\numberline {4.15}{\ignorespaces Postman Logo}}{38}{figure.caption.39}%
+\contentsline {figure}{\numberline {4.16}{\ignorespaces Git Logo}}{38}{figure.caption.40}%
+\contentsline {figure}{\numberline {4.17}{\ignorespaces GitHub Logo}}{38}{figure.caption.41}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Detailed Backend Component Architecture}}{41}{figure.caption.42}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces RAG Pipeline Execution Architecture}}{43}{figure.caption.43}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces Wireframe mockup of the Public Landing Page}}{46}{figure.caption.44}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces Wireframe mockup of the Main AI Chat Interface}}{47}{figure.caption.45}%
+\contentsline {figure}{\numberline {5.5}{\ignorespaces Wireframe mockup of the Split-Screen LaTeX Editor Workspace}}{47}{figure.caption.46}%
+\contentsline {figure}{\numberline {5.6}{\ignorespaces Wireframe mockup of the Document Management System (Database Explorer)}}{48}{figure.caption.47}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {6.1}{\ignorespaces Public Landing Page Outlining Core LegalTech Features.}}{52}{figure.caption.48}%
+\contentsline {figure}{\numberline {6.2}{\ignorespaces Clerk Authentication Portals: Account Creation (Left) and Sign-In (Right).}}{53}{figure.caption.49}%
+\contentsline {figure}{\numberline {6.3}{\ignorespaces Initial Chat Dashboard Layout and History Navigation Utilities.}}{53}{figure.caption.50}%
+\contentsline {figure}{\numberline {6.4}{\ignorespaces Active RAG Chat Sessions Rendering Bilingual Markdown and Formatted Tables.}}{54}{figure.caption.51}%
+\contentsline {figure}{\numberline {6.5}{\ignorespaces Live File Attachment Modal Triggered from the Chat Input.}}{55}{figure.caption.52}%
+\contentsline {figure}{\numberline {6.6}{\ignorespaces DMS Interface Displaying the Virtual Folder Creation Modal.}}{55}{figure.caption.53}%
+\contentsline {figure}{\numberline {6.7}{\ignorespaces DMS Explorer Highlighting Dynamic Sorting and Pagination Controls.}}{56}{figure.caption.54}%
+\contentsline {figure}{\numberline {6.8}{\ignorespaces Initial State of the LaTeX Workspace and Project Explorer.}}{56}{figure.caption.55}%
+\contentsline {figure}{\numberline {6.9}{\ignorespaces Split-Screen Editor Toggling Between Raw Code View (Top) and Visual PDF Render (Bottom).}}{57}{figure.caption.56}%
+\contentsline {figure}{\numberline {6.10}{\ignorespaces AI Assistant Processing Document Context to Suggest Direct Edits.}}{58}{figure.caption.57}%
+\contentsline {figure}{\numberline {6.11}{\ignorespaces Execution of the \texttt {/template} Slash-Command Autonomously Generating a Contract.}}{58}{figure.caption.58}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }

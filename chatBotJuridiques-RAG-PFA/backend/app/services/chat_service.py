@@ -230,8 +230,13 @@ async def send_message(
             "unique_chunks_retrieved": len(final_chunks)
         }
 
-    # Call Gemini (Shared API for both routes - Bypassing standard SYSTEM_PROMPT)
-    ai_response_text = await call_legal_ai(prompt, media_parts=media_parts, bypass_system_prompt=True)
+    # Call Gemini or GPT
+    ai_response_text = await call_legal_ai(
+        prompt, 
+        media_parts=media_parts, 
+        bypass_system_prompt=True,
+        model_choice=data.model
+    )
 
     # 3. Insert AI message
     ai_msg = MessageIA(

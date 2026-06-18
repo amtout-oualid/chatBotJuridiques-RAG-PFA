@@ -12,8 +12,10 @@ import time
 import json
 from functools import partial
 
+import base64
 from google import genai
 from google.genai import types
+import openai
 
 from app.config import get_settings
 from app.logger import rag_logger
@@ -22,6 +24,7 @@ from app.logger import rag_logger
 # Client initialisation (lazy singleton)
 # ─────────────────────────────────────────────────────────
 _client: genai.Client | None = None
+_openai_client: openai.OpenAI | None = None
 
 
 def _get_client() -> genai.Client:
@@ -31,6 +34,14 @@ def _get_client() -> genai.Client:
         settings = get_settings()
         _client = genai.Client(api_key=settings.GOOGLE_API_KEY)
     return _client
+
+def _get_openai_client() -> openai.OpenAI:
+    """Lazily initialise the OpenAI client with the API key from settings."""
+    global _openai_client
+    if _openai_client is None:
+        settings = get_settings()
+        _openai_client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+    return _openai_client
 
 
 # ─────────────────────────────────────────────────────────
@@ -116,6 +127,50 @@ def _sync_generate(client: genai.Client, user_input: str, media_parts: list = No
     rag_logger.info("Gemini API generated content successfully", extra={"duration_ms": round(duration_ms, 2)})
     return response.text or "Désolé, je n'ai pas pu générer de réponse."
 
+def _sync_generate_gpt(client: openai.OpenAI, user_input: str, media_parts: list = None, bypass_system_prompt: bool = False) -> str:
+    """Synchronous OpenAI call for GPT-4o."""
+    start_time = time.perf_counter()
+    
+    messages = []
+    
+    if bypass_system_prompt:
+        content_parts = [{"type": "text", "text": user_input}]
+    else:
+        messages.append({"role": "system", "content": SYSTEM_PROMPT})
+        content_parts = [{"type": "text", "text": user_input}]
+
+    if media_parts:
+        for m in media_parts:
+            if "text" in m:
+                content_parts.append({"type": "text", "text": m["text"]})
+            elif "inline_data" in m:
+                mime_type = m["inline_data"]["mime_type"]
+                # Convert raw bytes to base64 string
+                base64_data = base64.b64encode(m["inline_data"]["data"]).decode('utf-8')
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{base64_data}"
+                    }
+                })
+
+    messages.append({"role": "user", "content": content_parts})
+    
+    rag_logger.debug("Generating content with OpenAI API", extra={"media_parts_count": len(media_parts) if media_parts else 0})
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            temperature=0.7,
+        )
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        rag_logger.info("OpenAI API generated content successfully", extra={"duration_ms": round(duration_ms, 2)})
+        return response.choices[0].message.content or "Désolé, je n'ai pas pu générer de réponse."
+    except Exception as e:
+        rag_logger.error(f"Failed to generate content with OpenAI: {e}")
+        raise e
+
 def _sync_rewrite_query(client: genai.Client, prompt: str) -> list[str]:
     """Synchronously asks Gemini to output a JSON array of sub-queries."""
     start_time = time.perf_counter()
@@ -151,20 +206,23 @@ def _sync_rewrite_query(client: genai.Client, prompt: str) -> list[str]:
 # ─────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────
-async def call_legal_ai(user_input: str, media_parts: list = None, bypass_system_prompt: bool = False) -> str:
+async def call_legal_ai(user_input: str, media_parts: list = None, bypass_system_prompt: bool = False, model_choice: str = "gemini") -> str:
     """
-    Send a user prompt to Google Gemini and return the AI response.
+    Send a user prompt to Google Gemini or OpenAI GPT and return the AI response.
     Accepts optional media_parts for multimodal capabilities.
     """
-    client = _get_client()
-
     try:
-        result = await asyncio.to_thread(_sync_generate, client, user_input, media_parts, bypass_system_prompt)
+        if model_choice == "gpt":
+            client = _get_openai_client()
+            result = await asyncio.to_thread(_sync_generate_gpt, client, user_input, media_parts, bypass_system_prompt)
+        else:
+            client = _get_client()
+            result = await asyncio.to_thread(_sync_generate, client, user_input, media_parts, bypass_system_prompt)
         return result
 
     except Exception as exc:
-        rag_logger.error(f"Error communicating with Gemini AI: {exc}", exc_info=True)
-        return f"Erreur lors de la communication avec l'IA : {str(exc)}"
+        rag_logger.error(f"Error communicating with AI ({model_choice}): {exc}", exc_info=True)
+        return f"Erreur lors de la communication avec l'IA ({model_choice}) : {str(exc)}"
 
 async def rewrite_query_async(history: str, query: str) -> list[str]:
     """

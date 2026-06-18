@@ -197,15 +197,6 @@ BAAI/bge-m3 is an advanced open-source machine learning framework and embedding 
 \subsection{FlagEmbedding (BGE-Reranker)}
 The BGE-Reranker is a Cross-Encoder neural network that evaluates pairs of texts (a user query and a retrieved document chunk) to output a highly accurate semantic relevance score.
 
-\begin{figure}[H]
-    \centering
-    \IfFileExists{Figures/reranker.png}{
-        \includegraphics[width=0.3\textwidth]{Figures/reranker.png}
-    }{
-        \framebox[5cm]{\rule{0pt}{2cm} \textbf{reranker.png}}
-    }
-    \caption{BGE Reranker Architecture}
-\end{figure}
 
 \textbf{Why it was used:} Implemented as the crucial "second stage" of the retrieval pipeline. It drastically reduces AI hallucinations by re-evaluating and filtering the initial broad vector search down to the absolute most precise and contextually relevant chunks before passing them to the LLM.
 
@@ -232,28 +223,32 @@ LaTeXLite is a cloud-based LaTeX compilation service, while MiKTeX is a standard
 
 \begin{figure}[H]
     \centering
-    \IfFileExists{Figures/latex.png}{
-        \includegraphics[width=0.2\textwidth]{Figures/latex.png}
-    }{
-        \framebox[4cm]{\rule{0pt}{2cm} \textbf{latex.png}}
-    }
+    % First Image
+    \begin{minipage}{0.25\textwidth}
+        \centering
+        \IfFileExists{Figures/latex.png}{
+            \includegraphics[width=\linewidth]{Figures/latex.png}
+        }{
+            \framebox[4cm]{\rule{0pt}{2cm} \textbf{latex.png}}
+        }
+    \end{minipage}% Notice we removed \hfill here
+    \hspace{1cm} % <--- This controls the gap between the images. Change 1cm to whatever you prefer!
+    % Second Image
+    \begin{minipage}{0.25\textwidth}
+        \centering
+        \IfFileExists{Figures/latex1.png}{
+            \includegraphics[width=\linewidth]{Figures/latex1.png}
+        }{
+            \framebox[4cm]{\rule{0pt}{2cm} \textbf{latex1.png}}
+        }
+    \end{minipage}
+    
     \caption{LaTeX Compilation Tools}
 \end{figure}
-
 \textbf{Why it was used:} Deployed in a dynamic, hybrid configuration to render generated LaTeX code into printable PDFs. The cloud API handles ultra-fast, text-only compilations, while the local MiKTeX engine acts as a robust fallback to compile complex legal documents containing custom user images (like company logos or signatures).
-
 \subsection{uv (Python Package Manager)}
 uv is an extremely fast Python package and project manager, written in Rust, designed as a modern, high-performance replacement for standard pip.
 
-\begin{figure}[H]
-    \centering
-    \IfFileExists{Figures/uv.png}{
-        \includegraphics[width=0.2\textwidth]{Figures/uv.png}
-    }{
-        \framebox[4cm]{\rule{0pt}{2cm} \textbf{uv.png}}
-    }
-    \caption{uv Package Manager Logo}
-\end{figure}
 
 \textbf{Why it was used:} Selected to drastically accelerate the installation of massive Machine Learning dependencies (like PyTorch and Transformers) and to ensure strict, reproducible virtual environments across development and production machines.
 

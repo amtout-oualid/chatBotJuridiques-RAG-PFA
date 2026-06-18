@@ -2,166 +2,133 @@
 \label{chap:Project_Context_and_Objectives}
 
 \section*{Introduction}
-Dans cette partie, on va parler du contexte du projet, la
-problématique qu’il résout ainsi que l’objectif du projet.
+This chapter delineates the foundational context of the project, elucidates the specific challenges it seeks to address, and establishes the primary objectives that will guide the development of the proposed LegalTech platform.
 
+\section{General Project Framework}
 
-\vspace{0.5cm}
-\section{Cadre Général du projet}
 \subsection{General Context}
+The contemporary global landscape is characterized by a rapid acceleration in digital transformation, presenting unprecedented opportunities to automate and optimize diverse sectors. However, the legal and administrative domain—particularly within Morocco—remains heavily reliant on traditional, manual methodologies. This pervasive reliance on legacy systems renders the acquisition of accurate legal information and the execution of administrative consultations inherently complex, financially burdensome, and highly resource-intensive.
 
-Today's world is witnessing a massive acceleration in the pace of digital transformation, opening up broad horizons for automating various sectors to become more efficient and effective. However, the legal and administrative sector, particularly in Morocco, still relies heavily on traditional methods. This makes the process of accessing accurate legal information or administrative consultations complex, expensive, and highly time-and-effort consuming.
-
-As first-year engineering students in the "Advanced Software Engineering for Digital Services" (ASEDS) program at the National Institute of Posts and Telecommunications (INPT), we have acquired a solid academic foundation encompassing software engineering, advanced databases, and the development of complex systems[cite: 2]. Building on this foundation, and amidst the current artificial intelligence revolution, we identified an exceptional opportunity to leverage these modern technologies (specifically in the LegalTech domain) to modernize this sector, making it easier for individuals to access the information they need seamlessly and reliably.
-
+As first-year engineering students enrolled in the "Advanced Software Engineering for Digital Services" (ASEDS) program at the National Institute of Posts and Telecommunications (INPT), we have cultivated a robust academic foundation encompassing software engineering principles, advanced database management, and the architecture of complex digital systems \cite{ref2}. Capitalizing on this foundation and the ongoing revolution in artificial intelligence, we identified a compelling opportunity to harness these emerging technologies. By focusing specifically on the LegalTech domain, we aim to modernize this critical sector, facilitating seamless, reliable, and democratized access to legal information for the general public.
 
 \subsection{Problem Statement}
-
-Despite the urgent need to digitize the legal sector, integrating artificial intelligence into this field in Morocco faces several technical and economic challenges, which can be summarized in the following points:
+Despite the pressing need to digitize the legal sector, the integration of artificial intelligence into the Moroccan legal framework encounters several distinct technical and economic hurdles. These challenges can be synthesized as follows:
 
 \begin{itemize}
-    \item \textbf{High Cost and Lack of Automation:} The legal field lacks automation, making legal consultations prohibitively expensive. Legal consultants charge substantial fees, leaving the average user with a dilemma: either spend long hours in manual web searches that may yield no results, or pay exorbitant amounts for a simple answer.
+    \item \textbf{Prohibitive Costs and Automation Deficits:} The systemic lack of automation in the legal sector renders professional consultations prohibitively expensive. Legal consultants typically mandate substantial fees, presenting the average user with a severe dilemma: either expend inordinate hours conducting manual, often fruitless web searches, or incur exorbitant costs for a fundamental legal inquiry.
     
-    \item \textbf{Shortcomings of Global Language Models (Risk of Hallucination):} Despite the immense capabilities of Large Language Models (LLMs), they are primarily trained on foreign data and lack deep knowledge of Moroccan legal sources. Consequently, when asked about a specific Moroccan legal procedure, they often fall into the trap of "hallucination," providing completely fabricated and incorrect answers.
+    \item \textbf{Limitations of Global LLMs (The Hallucination Risk):} Despite the extraordinary capabilities of Large Language Models (LLMs), these architectures are predominantly trained on foreign, anglo-centric datasets and inherently lack deep, localized knowledge of Moroccan legal jurisprudence. Consequently, when queried regarding specific Moroccan legal procedures, these models frequently succumb to "hallucinations," generating confident but entirely fabricated and factually incorrect responses.
     
-    \item \textbf{Data Extraction Challenge (Document Format):} Moroccan legal documents and administrative circulars are rarely available in smooth digital formats. Instead, they are typically scanned PDF files containing tables, stamps, and signatures. Classical text extraction (OCR) tools fail to process these files and extract information from them.
+    \item \textbf{Data Extraction Bottlenecks (Unstructured Document Formats):} Moroccan legal documents and administrative circulars are rarely distributed in machine-readable, digital-native formats. Instead, they predominantly exist as scanned, image-based PDF files replete with complex tabular matrices, official stamps, and handwritten signatures. Traditional Optical Character Recognition (OCR) heuristics consistently fail to process and accurately extract structured semantic data from these artifacts.
     
-    \item \textbf{Linguistic and Semantic Barrier:} Most documents are drafted in formal legal Arabic. Processing this type of text requires a powerful Embedding Model trained specifically on the Arabic language to conduct accurate semantic searches.
+    \item \textbf{Linguistic and Semantic Barriers:} The vast majority of official documentation is drafted in formal, highly structured Legal Arabic. Processing this specific dialect necessitates a robust, specialized Embedding Model explicitly trained on Arabic semantic structures to execute accurate mathematical vector searches.
 \end{itemize}
 
-
 \subsection{Project Objectives}
-
-Faced with these challenges, our project aims to build an integrated digital platform by achieving the following primary and secondary objectives:
+In direct response to these multi-faceted challenges, this project endeavors to architect and deploy an integrated digital platform. The successful realization of this platform is predicated on achieving the following primary and secondary objectives:
 
 \begin{itemize}
-    \item Conduct a precise needs analysis and prepare the project's specifications document (Cahier des charges).
-    \item Select the best technologies and programming languages (Tech Stack) most suited for building the project.
-    \item Build a Retrieval-Augmented Generation (RAG) system: To minimize hallucination and force the AI to extract answers exclusively from approved Moroccan sources and documents.
-    \item Build advanced pipelines.
-    \item Select the best Embedding Model.
-    \item Select the best Optical Character Recognition (OCR) model, relying on an intelligent AI-powered model, which includes:
+    \item Conduct a rigorous needs analysis and formally draft a comprehensive project specifications document.
+    \item Evaluate and select an optimal, modern technology stack capable of supporting high-performance enterprise requirements.
+    \item Architect an advanced Retrieval-Augmented Generation (RAG) system specifically designed to eradicate AI hallucination by forcing the generative model to synthesize answers exclusively from verified Moroccan legal sources.
+    \item Implement state-of-the-art OCR pipelines and multilingual Embedding Models to ensure high-fidelity data ingestion.
+    \item Develop an intuitive, responsive User Interface (UI) featuring:
     \begin{itemize}
-        \item Converting PDF documents into high-quality images.
-        \item Sending these images to our model along with a prompt specifically designed and tailored to handle this type of document.
-        \item Saving the outputs in the database, utilizing them in the retrieving process, and enabling the system to handle these documents highly efficiently.
+        \item A real-time chat interface allowing users to converse dynamically with the RAG-powered Legal LLM.
+        \item A multimodal bypass system empowering users to upload and query their personal documents directly.
+        \item A Split-Screen \LaTeX\ Editor enabling users to autonomously draft, modify, and compile professional legal documents via code or through AI-driven template injection.
     \end{itemize}
-    
-    \item Build the User Interface, which includes the following functionalities:
-    \begin{itemize}
-        \item Enabling the user to communicate directly with the Large Language Model (LLM) powered by the RAG system.
-        \item Allowing the user to send and upload their own documents to the Chatbot.
-        \item Empowering the user to create and draft documents using LaTeX via code, prompting the Chatbot to generate them using ready-made templates, or making modifications to their own files.
-    \end{itemize}
-    
-    \item Build a secure Authentication System for user login.
-    \item Secure the project to protect user data and their uploaded files.
-    \item Build an optimized database.
-    \item Build a Log System.
-    \item Optimize the system to support the largest possible number of concurrent users while reducing operational costs.
-    \item Conduct Testing and Quality Assurance (QA) operations to ensure the platform is bug-free.
-    \item Project Deployment.
+    \item Implement a robust Identity and Access Management (IAM) system for secure authentication.
+    \item Enforce strict data security and Row-Level Security (RLS) policies to protect user metadata and uploaded artifacts.
+    \item Design a highly normalized, asynchronous relational database.
+    \item Engineer a comprehensive, JSON-based telemetry and logging system to monitor backend execution and AI latencies.
+    \item Optimize backend concurrency to support high-volume parallel requests while minimizing operational cloud costs.
+    \item Execute exhaustive Quality Assurance (QA) and end-to-end testing protocols to guarantee systemic stability.
+    \item Finalize and execute the production deployment of the platform.
 \end{itemize}
 
 \newpage
-\section{Conduite de projet}
+\section{Project Management and Methodology}
 
-\subsection{Méthodologie adoptée}
+\subsection{Adopted Methodology}
 
-\subsubsection{Méthode Scrum}
-
-Scrum est un schéma d'organisation de développement de produits complexes. Il est défini par ses créateurs comme un « cadre de travail holistique itératif qui se concentre sur les buts communs en livrant de manière productive et créative des produits de la plus grande valeur possible ». Scrum est considéré comme un groupe de pratiques répondant pour la plupart aux préconisations du Manifeste Agile.
+\subsubsection{The Scrum Framework}
+Scrum is an agile organizational framework utilized to manage the development of complex products. Defined by its creators as an iterative, holistic framework, Scrum focuses on achieving common objectives by delivering high-value products in a productive and creative manner. It is widely recognized as a premier implementation of the Agile Manifesto's core principles.
 
 \begin{figure}[htbp]
     \centering
-    \IfFileExists{Figures/1.png}{
-        \includegraphics[width=0.8\textwidth]{Figures/1.png}
+    \IfFileExists{Figures/1.jpg}{
+        \includegraphics[width=0.85\textwidth, keepaspectratio]{Figures/1.jpg}
     }{
-        \framebox[12cm]{\rule{0pt}{6cm} \textbf{Image manquante: Figures/1.png}}
+        \framebox[0.85\textwidth]{\rule{0pt}{150pt} \textbf{Missing Image: Figures/1.jpg}}
     }
-    \caption{Schéma explicatif de scrum}
+    \caption{Visual representation of the Scrum Agile methodology.}
+    \label{fig:scrum_schema}
 \end{figure}
 
-Pour mettre en place un projet en suivant les bonnes pratiques SCRUM, il nous faut :
-
+Implementing a project under Scrum best practices requires the following foundational elements:
 \begin{itemize}
-    \item Une équipe responsable et autonome qui peut pallier les éventuels changements d'un client trop indécis.
-    \item Une organisation du travail par une série de « sprints » : des itérations courtes de 2 à 4 semaines au plus, pour permettre des interventions rapides en cas de problèmes.
-    \item Une définition des exigences : On devra rassembler les éléments à mettre en œuvre dans une liste qu'on appelle « Backlog du produit ».
+    \item An autonomous, highly responsible cross-functional team capable of rapidly adapting to dynamic client requirements or pivoting technical scopes.
+    \item A structural workflow organized into "Sprints": short, time-boxed iterations (typically 2 to 4 weeks) facilitating rapid intervention and continuous integration.
+    \item A rigorous definition of requirements, systematically consolidated into an evolving master task list known as the "Product Backlog."
 \end{itemize}
 
-\subsubsection{Rôles dans SCRUM}
-
-Scrum définit les rôles principaux suivants :
-
+\subsubsection{Roles within Scrum}
+The Scrum framework prescribes three primary roles:
 \begin{enumerate}[label=\arabic*)]
-    \item Le Product Owner : C'est le directeur du produit, représentant du client et de ses attentes. Il est obligatoire qu'il soit disponible pour répondre aux questions.
-    \item Le Scrum Master : C'est celui qui est chargé de veiller sur l'application des valeurs SCRUM. Il protège aussi l'équipe de tout élément perturbateur extérieur et résout les problèmes.
-    \item L'équipe : elle est autonome et s'auto-gère. Pas de concept de hiérarchie, et toutes les décisions sont discutés et prises ensemble.
+    \item \textbf{The Product Owner:} The product's visionary and the primary proxy for the client's expectations. This role mandates high availability to resolve ambiguities and prioritize the backlog.
+    \item \textbf{The Scrum Master:} The facilitator responsible for ensuring absolute adherence to Scrum values. The Scrum Master shields the team from external disruptions and orchestrates the removal of developmental bottlenecks.
+    \item \textbf{The Development Team:} A self-managing, autonomous collective devoid of internal hierarchical structures, where technical decisions are deliberated and executed collaboratively.
 \end{enumerate}
 
-Ces trois parties s'organisent entre eux pour animer les événements SCRUM suivants :
-
+These entities synergize to execute the following core Scrum events:
 \begin{itemize}
-    \item Les Sprints : c'est le découpage d'un projet en boîte de temps, le sprint commence après la fin du sprint précédent et a une durée de deux à quatre semaines.
-    \item Le Sprint Planning : c'est la planification du sprint courant, elle se fait au début de chaque sprint c'est là où sont choisis les fonctionnalités ou User stories à travailler durant la période du sprint.
-    \item Le Sprint Exécution : C'est l'exécution du travail planifié. Il contient optionnellement une phase de conception suivi d'une phase de développement.
-    \item Le Sprint Review et rétrospective : c'est une chance de se remettre en question de revenir sur ce qui a été effectué et ce qui peut être amélioré à la fin de chaque sprint.
-    \item Le Product Backlog Grooming : puisque l'agile permet le changement, le Product Backlog est sujet à un changement qui se fait de manière continue après la fin du sprint.
+    \item \textbf{The Sprint:} A strict time-box defining the developmental cycle.
+    \item \textbf{Sprint Planning:} The initial event where the team collaboratively selects specific User Stories from the Product Backlog to target during the impending Sprint.
+    \item \textbf{Sprint Execution:} The active developmental phase, encompassing architectural design, programming, and testing.
+    \item \textbf{Sprint Review and Retrospective:} The concluding evaluation where the team demonstrates the newly implemented features and introspects on workflow improvements for subsequent Sprints.
+    \item \textbf{Backlog Grooming:} The continuous refinement and re-prioritization of the Product Backlog to accommodate shifting project dynamics.
 \end{itemize}
 
-\subsection{Répartition des rôles}
+\subsection{Role Distribution within the Team}
+Given the streamlined nature of our academic development team for this project, the allocation of a dedicated, full-time Scrum Master was structurally impractical. Consequently, we adopted an adapted, highly collaborative Scrum paradigm, dynamically distributing the responsibilities of the Product Owner, Scrum Master, and Developers amongst ourselves to best simulate enterprise Agile workflows.
 
-Durant ce stage, notre équipe se composait de :
+\subsection{Collaboration and Communication Tools}
 
-Durant ce projet, en raison de la taille réduite de notre équipe, il n'y avait pas littéralement un Scrum Master dédié à plein temps. C'est pourquoi nous avons essayé de simuler au mieux la méthodologie Scrum en adaptant les rôles de manière collaborative 
-
-
-\subsection{Outils de collaboration}
-
+\subsubsection{Instant Communication}
+We utilized direct messaging platforms (such as WhatsApp) as our primary conduit for rapid coordination, conducting four distinct types of Agile meetings:
 \begin{itemize}
-    \item \textbf{Utilisation de whatsapp}
+    \item \textbf{Daily Stand-ups:} Brief syncs allowing team members to report progress, highlight immediate goals, and flag technical blockers.
+    \item \textbf{Pair-Programming Syncs:} Technical deep-dives utilized for complex architectural design and collaborative debugging sessions.
+    \item \textbf{Product Demonstration Reviews:} Milestone meetings dedicated to showcasing compiled features and reviewing the project's holistic functionality prior to final delivery.
 \end{itemize}
-
-En général, nous utilisions whatsapp pour effectuer quatre types de réunions durant notre project :
-
-\begin{itemize}
-    \item Des réunions quotidiennes qui permettaient aux membres de l'équipe de partager ce qu'ils ont fait la veille, et de discuter ce qu'il y a à faire.
-    \item Des réunions du Peer-Programming : qui permettaient aux membres de l'équipe de faire de la conception et de résoudre éventuellement des problèmes techniques assez complexes.
-    
-    \item Réunion de présentation du produit : c'est une seule présentation qu'on avait à faire à la fin de notre project, durant laquelle on a fait une démonstration de la solution.
-\end{itemize}
-
-
 
 \begin{figure}[htbp]
     \centering
     \IfFileExists{Figures/2.png}{
-        \includegraphics[width=0.9\textwidth]{Figures/2.png}
+        \includegraphics[width=0.4\textwidth, keepaspectratio]{Figures/2.png}
     }{
-        \framebox[12cm]{\rule{0pt}{6cm} \textbf{Image manquante: Figures/2.png}}
+        \framebox[0.4\textwidth]{\rule{0pt}{100pt} \textbf{Missing Image: Figures/2.png}}
     }
-    \caption{Capture d'écran dans WhatsApp}
+    \caption{Example of team communication and daily stand-ups.}
+    \label{fig:communication}
 \end{figure}
-\begin{itemize}
-    \item \textbf{Gestion du code source avec Git et GitHub}
-\end{itemize}
 
-Nous avons utilisé \textbf{Git} et \textbf{GitHub} pour centraliser notre code en ligne, permettant à l'équipe de suivre et d'évaluer la dernière version du projet. Nous avons adopté une stratégie de \textbf{Branching} et \textbf{Merge} après validation. 
+\subsubsection{Version Control and Source Management}
+We strictly enforced version control methodologies utilizing \textbf{Git} and \textbf{GitHub}. This centralized approach guaranteed that the entire team maintained synchronized access to the latest verified codebase. 
 
-De plus, chaque \textbf{Commit} a été soigneusement rédigé pour décrire précisément le travail accompli et la prochaine étape , garantissant ainsi une traçabilité totale comme l'illustre la figure ci-dessous :
+We adopted a strict \textbf{Branching and Merging} strategy, ensuring features were isolated during development and only merged into the main production branch following rigorous peer review. Furthermore, every \textbf{Commit} was carefully documented with descriptive syntax, ensuring absolute traceability of the platform's evolutionary history, as illustrated below.
 
 \begin{figure}[htbp]
     \centering
     \IfFileExists{Figures/3.png}{
-        \includegraphics[width=0.9\textwidth]{Figures/3.png}
+        \includegraphics[width=0.9\textwidth, keepaspectratio]{Figures/3.png}
     }{
-        \framebox[12cm]{\rule{0pt}{5cm} \textbf{Image manquante: Figures/3.png (Capture des Commits)}}
+        \framebox[0.9\textwidth]{\rule{0pt}{150pt} \textbf{Missing Image: Figures/3.png}}
     }
-    \caption{Historique des commits et messages de suivi sur GitHub}
+    \caption{Version control trace highlighting Git commits and branches on GitHub.}
+    \label{fig:github_commits}
 \end{figure}
 
 \section*{Conclusion}
-Maintenant, comme on a bien défini le contexte du projet, les problématiques et
-finalement les objectifs permettant de mesurer la réussite ou non du projet. On va passer
-à la spécification des besoins ainsi que l’analyse et la conception de notre projet.
+Having firmly established the systemic context, diagnosed the core industry bottlenecks, and articulated the definitive objectives required for project success, the theoretical framework of the LegalTech platform is complete. The subsequent chapters will detail the precise needs specification, the system modeling, and the highly optimized architectural design required to materialize this vision.

@@ -21,6 +21,8 @@ import LawyersPage from './pages/LawyersPage';
 
 import './App.css';
 
+import { ModelProvider } from './context/ModelContext';
+
 function AuthSync() {
   const { getToken } = useAuth();
   const { user, isLoaded } = useUser();
@@ -61,85 +63,87 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/" element={<LandingPage />} />
-      <Route
-        path="/sign-in/*"
-        element={
-          <div className="auth-page">
-            <SignIn routing="path" path="/sign-in" afterSignInUrl="/chat" />
-          </div>
-        }
-      />
-      <Route
-        path="/sign-up/*"
-        element={
-          <div className="auth-page">
-            <SignUp routing="path" path="/sign-up" afterSignUpUrl="/chat" />
-          </div>
-        }
-      />
+    <ModelProvider>
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/sign-in/*"
+          element={
+            <div className="auth-page">
+              <SignIn routing="path" path="/sign-in" afterSignInUrl="/chat" />
+            </div>
+          }
+        />
+        <Route
+          path="/sign-up/*"
+          element={
+            <div className="auth-page">
+              <SignUp routing="path" path="/sign-up" afterSignUpUrl="/chat" />
+            </div>
+          }
+        />
 
-      {/* Protected — Chat (newfront shell, no MainLayout) */}
-      <Route
-        path="/chat"
-        element={
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/chat/:sessionId"
-        element={
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected — Chat (newfront shell, no MainLayout) */}
+        <Route
+          path="/chat"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat/:sessionId"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Protected — Database (newfront shell, no MainLayout) */}
-      <Route
-        path="/database"
-        element={
-          <ProtectedRoute>
-            <DatabasePage />
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected — Database (newfront shell, no MainLayout) */}
+        <Route
+          path="/database"
+          element={
+            <ProtectedRoute>
+              <DatabasePage />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Protected — Editor (newfront shell, no MainLayout) */}
-      <Route
-        path="/editor"
-        element={
-          <ProtectedRoute>
-            <EditorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/editor/:documentId"
-        element={
-          <ProtectedRoute>
-            <EditorPage />
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected — Editor (newfront shell, no MainLayout) */}
+        <Route
+          path="/editor"
+          element={
+            <ProtectedRoute>
+              <EditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/editor/:documentId"
+          element={
+            <ProtectedRoute>
+              <EditorPage />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Protected — MainLayout shell */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/lawyers" element={<LawyersPage />} />
-      </Route>
+        {/* Protected — MainLayout shell */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/lawyers" element={<LawyersPage />} />
+        </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ModelProvider>
   );
 }

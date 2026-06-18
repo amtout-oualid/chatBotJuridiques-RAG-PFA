@@ -85,6 +85,7 @@ class MessageCreate(BaseModel):
         None,
         description="Optional uploaded file ID from /files to use as RAG context",
     )
+    model: Optional[str] = Field("gemini", description="AI model to use (gemini or gpt)")
 
 
 class MessageResponse(BaseModel):

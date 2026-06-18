@@ -2,82 +2,72 @@
 \label{chap:architecture_design}
 
 \section*{Introduction}
-This chapter provides a detailed exploration of the system architecture, which is designed to be modular, scalable, and secure. Key components include the integration of Large Language Models (LLMs), the implementation of a highly specialized Retrieval-Augmented Generation (RAG) architecture, modern frontend and backend frameworks, and supporting services such as vector databases and logging telemetry. Each architectural component is designed to interact seamlessly while ensuring optimal performance, strict tenant isolation, and high robustness.
+This chapter provides a detailed exploration of the system architecture, which is designed to be modular, scalable, and secure. Key components include the integration of Large Language Models (LLMs), the implementation of a highly specialized Retrieval-Augmented Generation (RAG) architecture, modern frontend and backend architecture used, the log systesm used in this project.
 
 \pagebreak
 
 \section{Detailed Component Architecture}
 
 The platform's backend architecture follows a highly decoupled approach using FastAPI. This ensures that services are modular, asynchronous, and scalable.
-
-\subsection{Data Management}
-The backend efficiently manages relational data storage and retrieval using PostgreSQL via the \texttt{asyncpg} driver and SQLAlchemy, ensuring high responsiveness even under heavy concurrent loads. 
-To guarantee strict tenant isolation, user-uploaded files and generated \LaTeX\ projects are stored in dedicated directories on the server. Access is strictly mediated by Row-Level Security (RLS) policies and Foreign Keys tied to the authenticated user's unique ID. A user must be fully authenticated to gain access to their personal vault; no files are publicly exposed.
-
-\subsection{System Logging \& Telemetry}
-To maintain enterprise-grade observability, we engineered a custom, asynchronous Logging System that acts as the central nervous system of the backend.
+\subsection{Backend Design}
 \begin{itemize}
-    \item \textbf{Purpose:} The logging system tracks every incoming HTTP request, database query latency, unhandled exceptions, and RAG pipeline operations (chunking, embedding, retrieval). It allows administrators to trace errors and monitor the performance of the AI models in real-time.
-    \item \textbf{Mechanism:} Logs are formatted as structured JSON for machine-readability. To preserve disk space, the system uses a \texttt{TimedRotatingFileHandler}. Every night at midnight, the active log file is rotated, compressed into a \texttt{.gz} archive, and stored in the \texttt{/logs} directory. The system autonomously retains 30 days of history, automatically deleting archives older than a month to prevent storage overflow. Sensitive data (such as API keys and JWTs) are scrubbed via Regex before being written to disk.
-\end{itemize}
 
-\IfFileExists{Figures/log_architecture.png}{
+
+\item \textbf{Data Management:} Uses PostgreSQL (\texttt{asyncpg}/SQLAlchemy) for highly responsive data storage. It enforces strict tenant isolation via Row-Level Security (RLS), storing user files and projects in dedicated, authenticated directories with zero public exposure.
+
+\item \textbf{System Logging \& Telemetry:} An asynchronous JSON logging system tracks all API, database, and RAG operations. It ensures security by scrubbing sensitive data via Regex, and optimizes storage through nightly \texttt{.gz} compression with an automated 30-day deletion policy.
+
+\IfFileExists{Figures/logArch.png}{
     \begin{figure}[H]
         \centering
-        \includegraphics[width=0.8\textwidth]{Figures/log_architecture.png}
+        \includegraphics[width=0.8\textwidth]{Figures/logArch.png}
         \caption{Architecture of the Rotating JSON Log System}
         \label{fig:log_system}
     \end{figure}
 }{}
 
-\subsection{Authentication \& APIs}
-\textbf{Authentication:} We integrated \textbf{Clerk} for Identity and Access Management (IAM). Clerk handles multi-provider authentication (OAuth) and generates secure JSON Web Tokens (JWTs). The FastAPI backend intercepts every request using a custom dependency that decodes the JWT, verifies its signature against Clerk's dynamic JSON Web Key Set (JWKS), and extracts the user ID to enforce data ownership.
+\item \textbf{Authentication \& APIs:} \textbf{Clerk} handles secure Identity and Access Management via clerk, which the backend strictly verifies to enforce data ownership. A fully asynchronous FastAPI layer, auto-documented via Swagger, orchestrates all internal routing and external AI integrations (Gemini, OpenAI, LaTeXLite).
 
-\textbf{APIs:} The API is fully asynchronous and documented automatically via Swagger UI. It acts as the orchestration layer, managing internal routes for the Chat Interface, Document Management System (DMS), and communicating with external APIs (Google Gemini, OpenAI, and LaTeXLite).
-
-\IfFileExists{Figures/backend_architecture.png}{
+\IfFileExists{Figures/backend.png}{
     \begin{figure}[H]
         \centering
-        \includegraphics[width=0.9\textwidth]{Figures/backend_architecture.png}
+        \includegraphics[width=0.8\textwidth]{Figures/backend.png}
         \caption{Detailed Backend Component Architecture}
         \label{fig:backend_arch}
     \end{figure}
 }{}
+\end{itemize}
 
 \newpage
 \section{RAG Architecture \& Intelligence Pipeline}
 
-Our Retrieval-Augmented Generation (RAG) architecture diverges from standard implementations to specifically handle the morphological complexities of Moroccan legal documents in Arabic.
+Our Retrieval-Augmented Generation (RAG) architecture is divided into two distinct, asynchronous phases to maximize accuracy and efficiently handle the morphological complexities of Moroccan legal documents.
 
-\subsection{The Offline Ingestion Pipeline}
-Instead of relying on generic open-source OCR (Optical Character Recognition) libraries, which struggle with scanned Arabic matrices and legal stamps, we utilize a Vision-Language Model (\textbf{GPT-4o Vision}). The PDF is converted into images and sent to the model alongside a highly engineered, domain-specific prompt.
+\subsection{Phase 1: Offline Ingestion \& Storage}
+The ingestion process begins by processing raw legal PDFs through \texttt{PyMuPDF} and \texttt{pdf2image}. These extracted images are routed to a Vision-Language Model (\textbf{GPT-4o Vision}) instructed by a strict, domain-specific prompt. This prompt forces the model to filter out administrative noise (such as repetitive headers, dates, and stamps) and autonomously structure the text using precise XML tags (\texttt{<chunk>} and \texttt{<table>}). 
 
-This prompt strictly enforces noise filtering (ignoring headers, footers, and stamps) and forces the LLM to output semantic XML tags (\texttt{<chunk>} and \texttt{<table>}). A snippet of this critical System Prompt is detailed below:
+A custom Python parser then segments this output. The text segments are mathematically embedded using the multilingual \texttt{BAAI/bge-m3} model and indexed securely in a \textbf{ChromaDB} vector store. Crucially, to optimize retrieval and prevent token overflow, only the descriptive titles of tables are embedded, while the full Markdown table structures are preserved securely within the payload metadata.
 
-\begin{quote}
-\textit{"أنت خبير متقدم ومحلف في هندسة البيانات وتحليل النصوص من الوثائق الإدارية والقانونية... يجب ألا تدخل المعلومات التالية في قاعدة البيانات لأنها تكرار يفسد البحث: تجاهل الترويسة العلوية المتكررة: المملكة المغربية، وزارة الاقتصاد والمالية... استخرج النص كما هو بالضبط. لا تلخص، ولا تشرح... You MUST extract tables in Markdown format and wrap them exactly like this: <table> <title> Write a highly descriptive Arabic title... </title> <content> ... </content> </table>"}
-\end{quote}
+\subsection{Phase 2: Online Retrieval \& Generation}
+During a live chat session, the user's query is intercepted and embedded using the same \texttt{BAAI/bge-m3} model. The system executes a high-speed cosine similarity search against ChromaDB, retrieving the Top 20 most mathematically relevant chunks. 
 
-Once extracted, our custom Python parser splits the XML tags. For text chunks, the entire block is embedded using \texttt{BAAI/bge-m3} and saved to \textbf{ChromaDB}. For tables, a critical optimization is applied: only the descriptive \texttt{<title>} is embedded mathematically, while the full Markdown \texttt{<content>} is preserved as metadata payload.
+Because raw vector similarity can lack deep semantic nuance, these 20 chunks are passed through a Cross-Encoder neural network (\texttt{BAAI/bge-reranker-v2-m3}). The reranker evaluates the logical relationship between the query and each chunk, isolating the absolute Top 5 most relevant pieces of context. Finally, this highly refined context is assembled into a strict Arabic system prompt and dispatched to \textbf{Google Gemini 2.5 Flash}, which generates the final, hallucination-free legal response.
 
-\subsection{Retrieval \& Generation}
-When a user asks a question, the backend embeds the query and performs a cosine similarity search on ChromaDB to retrieve the Top 20 chunks. These chunks are then passed through a Cross-Encoder (\texttt{BAAI/bge-reranker}) to isolate the Top 5 most semantically relevant results. Finally, these 5 chunks are assembled into an augmented prompt and sent to \textbf{Google Gemini 2.5 Flash} to generate the final, highly accurate response.
-
-\IfFileExists{Figures/seq_rag_pipeline.png}{
+\IfFileExists{image.png}{
     \begin{figure}[H]
         \centering
-        \includegraphics[width=0.9\textwidth]{Figures/seq_rag_pipeline.png}
+        \includegraphics[width=0.6\textwidth]{image.png}
         \caption{RAG Pipeline Execution Architecture}
         \label{fig:rag_arch}
     \end{figure}
 }{}
 
 \newpage
-\section{Frontend Design \& User Experience}
+\section{Frontend Design}
 
-The frontend is a Single Page Application (SPA) built with \textbf{React 19} and \textbf{Vite}. It employs a modular component architecture and a clean, enterprise-grade dark/light user interface inspired by modern platforms like Notion.
+The frontend is a Multiple Page Application (MPA) built using \textbf{React}. It employs a modular component architecture and a clean user interface. the color palette and typography (fonst) are inspired by the \textbf{Ollama} platform, while the conversational interface mirrors the intuitive layout of \textbf{Google Gemini}. Furthermore, the document editing workspace takes structural cues from \textbf{Overleaf} and the \textbf{Antigravity} AI coding tool, paired with a file management system that replicates the seamless, drag-and-drop experience of a native desktop file explorer. 
 
-\subsection{Application Routing Tree}
+\subsection{Application Routing Tree (Sitemap)}
 The application leverages \texttt{react-router-dom} to manage client-side navigation seamlessly without reloading the browser. The route structure is organized as follows:
 
 \begin{verbatim}
@@ -94,21 +84,60 @@ The application leverages \texttt{react-router-dom} to manage client-side naviga
 |
 |-- /editor                   -> Workspace for LaTeX Generation
 |   |-- /editor/:id           -> Split-Screen Editor (Code / PDF Viewer / AI)
-|
-|-- /lawyers                  -> Professional Directory & Messaging
 \end{verbatim}
 
-\subsection{UI Optimization}
-The frontend implements specialized rendering layers. For instance, the Chat Page utilizes \texttt{react-markdown} combined with custom CSS logic (\texttt{unicode-bidi: plaintext}) to autonomously detect and perfectly align Arabic text Right-To-Left (RTL), while keeping French/English terminology Left-To-Right (LTR) within the same paragraph. State management is handled through React Hooks, ensuring that operations like inline renaming of folders or live file uploads are instantaneous and reactive.
+\subsection{UI and Prototyping}
 
-\IfFileExists{Figures/use_case.png}{
+During the initial design phase, we utilized \textbf{Excalidraw} to draft the UI/UX wireframes and conceptualize the platform's layout. The primary objective of these mockups was to bridge the gap between the complex backend architecture and the end-user. By designing an intuitive, accessible, and highly visual interface, we ensure that users can effortlessly leverage all the advanced backend functionalities (such as the RAG pipeline and LaTeX compiler), thereby significantly enhancing the overall user experience.
+
+The following figures illustrate the low-fidelity wireframes created to map out the user journeys across the platform's core modules.
+
+\IfFileExists{Figures/landingPage.png}{
     \begin{figure}[H]
         \centering
-        \includegraphics[width=0.8\textwidth]{Figures/use_case.png}
-        \caption{Platform Use Case Diagram}
-        \label{fig:frontend_usecase}
+        \includegraphics[width=0.55\textwidth]{Figures/landingPage.png}
+        \caption{Wireframe mockup of the Public Landing Page}
+        \label{fig:wireframe_landing}
     \end{figure}
 }{}
+
+\vspace{0.5cm}
+
+\IfFileExists{Figures/chatpage.png}{
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.9\textwidth]{Figures/chatpage.png}
+        \caption{Wireframe mockup of the Main AI Chat Interface}
+        \label{fig:wireframe_chat}
+    \end{figure}
+}{}
+
+\vspace{0.5cm}
+
+\IfFileExists{Figures/latexPage.png}{
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.9\textwidth]{Figures/latexPage.png}
+        \caption{Wireframe mockup of the Split-Screen LaTeX Editor Workspace}
+        \label{fig:wireframe_latex}
+    \end{figure}
+}{}
+
+\vspace{0.5cm}
+
+\IfFileExists{Figures/fileUploads.png}{
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.9\textwidth]{Figures/fileUploads.png}
+        \caption{Wireframe mockup of the Document Management System (Database Explorer)}
+        \label{fig:wireframe_files}
+    \end{figure}
+}{}
+
+
+
+
+
 
 \newpage
 \section*{Conclusion}

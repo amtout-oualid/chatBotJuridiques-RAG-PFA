@@ -18,10 +18,11 @@ export const chatService = {
     api.get(ENDPOINTS.CHAT_BY_ID(id), { params: { limit, offset } }),
 
   /** POST /chats/{id}/messages — send a message (optional file_id for RAG context) */
-  sendMessage: (id, contenu, fileId = null) =>
+  sendMessage: (id, contenu, fileId = null, model = 'gemini') =>
     api.post(ENDPOINTS.CHAT_MESSAGES(id), {
       contenu,
       ...(fileId ? { file_id: fileId } : {}),
+      model,
     }),
 
   /** PATCH /chats/{id} — update session metadata */
